@@ -25,6 +25,7 @@ export default function ScanPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [showAllInfo, setShowAllInfo] = useState(false);
   const [addedToMeds, setAddedToMeds] = useState(false);
+  const [scanErrorMsg, setScanErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileSelect(file: File) {
@@ -40,11 +41,28 @@ export default function ScanPage() {
 
     setStatus("scanning");
     setResult(null);
+    setScanErrorMsg(null);
     setAddedToMeds(false);
 
     try {
       setStatus("processing");
-      const scanResult = await mockScanMedicine();
+
+      // Validate if image is medicine-related via server API
+      const res = await fetch("/api/scan/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name }),
+      });
+
+      const validation = await res.json();
+
+      if (!validation.isMedicine) {
+        setScanErrorMsg(validation.error || "No medicine detected. Please upload a clear photo of a medicine strip, box, tablet, or bottle.");
+        setStatus("error");
+        return;
+      }
+
+      const scanResult: ScanResult = validation.scanResult || (await mockScanMedicine());
       if (scanResult.confidence < 0.6) {
         setStatus("low_confidence");
       } else {
@@ -52,6 +70,7 @@ export default function ScanPage() {
       }
       setResult(scanResult);
     } catch {
+      setScanErrorMsg("Unable to process image. Please try again with a clearer photo of a medicine.");
       setStatus("error");
     }
   }
@@ -60,6 +79,7 @@ export default function ScanPage() {
     setStatus("idle");
     setResult(null);
     setPreview(null);
+    setScanErrorMsg(null);
     setAddedToMeds(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -585,17 +605,19 @@ export default function ScanPage() {
                   marginBottom: 8,
                 }}
               >
-                Scan Failed
+                No Medicine Detected
               </h2>
               <p
                 style={{
                   fontSize: 14,
                   color: "var(--color-text-secondary)",
                   marginBottom: 20,
+                  maxWidth: 320,
+                  margin: "0 auto 20px",
+                  lineHeight: 1.5,
                 }}
               >
-                Unable to identify this medicine. Please try again with a
-                clearer image.
+                {scanErrorMsg || "The uploaded image does not appear to be a medicine. Please upload or capture a clear photo of a medicine packaging, strip, bottle, or label."}
               </p>
               <button className="btn-primary" style={{ justifyContent: "center" }} onClick={reset}>
                 <RefreshCw size={16} />

@@ -109,6 +109,10 @@ export default function ProfilePage() {
     }
   }
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+
   async function handleLogout() {
     setLoading(true);
     try {
@@ -127,6 +131,29 @@ export default function ProfilePage() {
       router.replace("/login");
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to sign out.");
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteInput.trim().toUpperCase() !== "DELETE") return;
+    setLoading(true);
+    try {
+      const isMockMode =
+        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
+        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+
+      if (!isMockMode) {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        await supabase.auth.signOut();
+      }
+
+      localStorage.clear();
+      router.replace("/login");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to delete account.");
       setLoading(false);
     }
   }
@@ -172,7 +199,7 @@ export default function ProfilePage() {
           </p>
         </div>
         <button
-          onClick={handleLogout}
+          onClick={() => setShowLogoutConfirm(true)}
           className="btn-ghost text-red-600 hover:bg-red-50 hover:text-red-700"
         >
           <LogOut size={18} />
@@ -363,10 +390,22 @@ export default function ProfilePage() {
               </div>
             </motion.div>
 
+            {/* Delete Account Danger Zone */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card p-5 border-red-100 bg-red-50/20">
+              <h3 className="text-base font-bold text-red-900 mb-1">Danger Zone</h3>
+              <p className="text-xs text-red-700/80 mb-4">Permanently delete your account and all associated medication data.</p>
+              <button
+                onClick={() => setShowDeleteAccountModal(true)}
+                className="btn-secondary text-red-600 hover:bg-red-50 border-red-200 text-xs"
+              >
+                Delete Account
+              </button>
+            </motion.div>
+
             {/* Mobile Sign Out button */}
             <div className="md:hidden">
               <button
-                onClick={handleLogout}
+                onClick={() => setShowLogoutConfirm(true)}
                 disabled={loading}
                 className="btn-ghost w-full justify-center text-red-600 hover:bg-red-50"
               >
@@ -377,6 +416,85 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* ── LOGOUT CONFIRMATION MODAL ── */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-2xl text-center">
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <LogOut size={22} />
+            </div>
+            <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-1">Sign Out?</h3>
+            <p className="text-xs text-[var(--color-text-secondary)] mb-5">
+              Are you sure you want to sign out of your PharmaAI account?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="btn-secondary flex-1 text-xs"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                disabled={loading}
+                className="btn-primary flex-1 justify-center bg-red-600 hover:bg-red-700 border-none text-white text-xs"
+              >
+                {loading ? <Loader2 size={14} className="animate-spin" /> : "Sign Out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DELETE ACCOUNT MODAL ── */}
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Shield size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-red-950 mb-1">Delete Account Permanently</h3>
+            <p className="text-xs text-red-700 mb-4 leading-relaxed">
+              This action cannot be undone. All your saved medicines, dose schedules, and adherence records will be permanently erased.
+            </p>
+
+            <div className="text-left mb-4">
+              <label className="text-xs font-semibold text-slate-700 block mb-1">
+                Type <strong className="text-red-600">DELETE</strong> to confirm:
+              </label>
+              <input
+                type="text"
+                placeholder="DELETE"
+                value={deleteInput}
+                onChange={(e) => setDeleteInput(e.target.value)}
+                className="input-field uppercase tracking-wider text-center font-mono font-bold"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteAccountModal(false);
+                  setDeleteInput("");
+                }}
+                className="btn-secondary flex-1 text-xs"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={loading || deleteInput.trim().toUpperCase() !== "DELETE"}
+                className="btn-primary flex-1 justify-center bg-red-600 hover:bg-red-700 border-none text-white text-xs disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={14} className="animate-spin" /> : "Delete Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

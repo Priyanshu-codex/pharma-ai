@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -9,6 +9,8 @@ import {
   Plus,
   AlarmClock,
   Loader2,
+  Trash2,
+  Bell,
 } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 
@@ -59,16 +61,119 @@ const INITIAL_REMINDERS: Reminder[] = [
 ];
 
 export default function RemindersPage() {
-  const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
+  const [reminders, setReminders] = useState<Reminder[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("pharmaai_reminders");
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          console.error("Failed to parse stored reminders:", e);
+        }
+      }
+    }
+    return INITIAL_REMINDERS;
+  });
+
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showSnoozeModal, setShowSnoozeModal] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Form states for Add Reminder modal
+  const [newMedName, setNewMedName] = useState("");
+  const [newDosage, setNewDosage] = useState("");
+  const [newTime, setNewTime] = useState("09:00");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pharmaai_reminders", JSON.stringify(reminders));
+    }
+  }, [reminders]);
+
+  // Request Notification permission & setup interval check for due reminders
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+
+    if (Notification.permission === "default") {
+      Notification.requestPermission().then((perm) => {
+        if (perm === "granted") {
+          import("@/lib/firebase/config").then(({ requestFCMToken }) => requestFCMToken());
+        }
+      });
+    }
+
+    // Interval checker for due reminders (every 30s)
+    const interval = setInterval(() => {
+      const now = new Date();
+      const currentHoursMin = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+      reminders.forEach((r) => {
+        if (r.enabled && r.status === "pending" && r.time === currentHoursMin) {
+          if (Notification.permission === "granted") {
+            new Notification(`💊 PharmaAI Reminder: ${r.medicine}`, {
+              body: `Time for your dose: ${r.dosage}. Tap to open schedule.`,
+              icon: "/icons/icon-192x192.png",
+            });
+          }
+        }
+      });
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [reminders]);
+
+  async function sendTestNotification() {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      alert("Browser notifications are not supported in this environment.");
+      return;
+    }
+
+    const perm = await Notification.requestPermission();
+    if (perm === "granted") {
+      import("@/lib/firebase/config").then(({ requestFCMToken }) => requestFCMToken());
+      new Notification("💊 PharmaAI Medication Alert", {
+        body: "Notifications are active! You will receive scheduled dose alerts on mobile & web.",
+        icon: "/icons/icon-192x192.png",
+      });
+    } else {
+      alert("Notification permission was denied. Please enable notifications in your browser settings.");
+    }
+  }
 
   async function updateStatus(id: string, status: ReminderStatus) {
     setLoadingId(id);
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 300));
     setReminders((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status } : r))
     );
     setLoadingId(null);
+  }
+
+  function handleAddReminder(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newMedName.trim() || !newDosage.trim()) return;
+
+    const newRem: Reminder = {
+      id: `r_${Date.now()}`,
+      medicine: newMedName.trim(),
+      dosage: newDosage.trim(),
+      time: newTime,
+      status: "pending",
+      enabled: true,
+    };
+
+    setReminders((prev) => [...prev, newRem]);
+    setNewMedName("");
+    setNewDosage("");
+    setNewTime("09:00");
+    setShowAddModal(false);
+  }
+
+  function handleConfirmDelete() {
+    if (!deleteConfirmId) return;
+    setReminders((prev) => prev.filter((r) => r.id !== deleteConfirmId));
+    setDeleteConfirmId(null);
   }
 
   const taken = reminders.filter((r) => r.status === "taken").length;
@@ -107,13 +212,23 @@ export default function RemindersPage() {
               })}
             </p>
           </div>
-          <button
-            className="btn-secondary"
-            style={{ padding: "8px 14px", gap: 6, fontSize: 13 }}
-          >
-            <Plus size={15} />
-            Add
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={sendTestNotification}
+              className="p-2 text-[var(--color-primary)] hover:bg-[var(--color-primary-50)] rounded-lg transition-colors border border-[var(--color-border-light)]"
+              title="Test Push Notification"
+            >
+              <Bell size={16} />
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn-secondary"
+              style={{ padding: "8px 14px", gap: 6, fontSize: 13 }}
+            >
+              <Plus size={15} />
+              Add
+            </button>
+          </div>
         </div>
       </div>
 
@@ -180,13 +295,130 @@ export default function RemindersPage() {
                     isLoading={loadingId === reminder.id}
                     onTaken={() => updateStatus(reminder.id, "taken")}
                     onSkipped={() => updateStatus(reminder.id, "skipped")}
-                    onSnoozed={() => updateStatus(reminder.id, "snoozed")}
+                    onSnoozed={() => setShowSnoozeModal(reminder.id)}
+                    onDelete={() => setDeleteConfirmId(reminder.id)}
                   />
                 ))}
               </div>
             </div>
           ))}
       </div>
+
+      {/* ── 1. ADD REMINDER MODAL ── */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-4">Add Medication Reminder</h3>
+            <form onSubmit={handleAddReminder} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-[var(--color-text-secondary)] block mb-1">Medicine Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Paracetamol 500mg"
+                  value={newMedName}
+                  onChange={(e) => setNewMedName(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--color-text-secondary)] block mb-1">Dosage & Instructions</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 1 tablet after meals"
+                  value={newDosage}
+                  onChange={(e) => setNewDosage(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--color-text-secondary)] block mb-1">Scheduled Time</label>
+                <input
+                  type="time"
+                  required
+                  value={newTime}
+                  onChange={(e) => setNewTime(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary flex-1 justify-center">
+                  Save Reminder
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 2. SNOOZE SELECTION MODAL ── */}
+      {showSnoozeModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-2xl text-center">
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <AlarmClock size={24} />
+            </div>
+            <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-1">Snooze Reminder</h3>
+            <p className="text-xs text-[var(--color-text-muted)] mb-4">Choose how long to snooze this dose</p>
+
+            <div className="space-y-2 mb-4">
+              {[15, 30, 60].map((mins) => (
+                <button
+                  key={mins}
+                  onClick={() => {
+                    updateStatus(showSnoozeModal, "snoozed");
+                    setShowSnoozeModal(null);
+                  }}
+                  className="w-full py-2.5 px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 transition-colors"
+                >
+                  Snooze for {mins} minutes
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowSnoozeModal(null)}
+              className="btn-ghost w-full justify-center text-xs"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. DELETE CONFIRMATION MODAL ── */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-2xl text-center">
+            <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-2">Delete Reminder?</h3>
+            <p className="text-xs text-[var(--color-text-secondary)] mb-6">
+              Are you sure you want to delete this medication schedule?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="btn-secondary flex-1 text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="btn-primary flex-1 justify-center bg-red-600 hover:bg-red-700 border-none text-white text-xs"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -197,12 +429,14 @@ function ReminderCard({
   onTaken,
   onSkipped,
   onSnoozed,
+  onDelete,
 }: {
   reminder: Reminder;
   isLoading: boolean;
   onTaken: () => void;
   onSkipped: () => void;
   onSnoozed: () => void;
+  onDelete: () => void;
 }) {
   const statusConfig: Record<ReminderStatus, { label: string; badgeClass: string; icon: React.ReactNode }> = {
     taken: { label: "Taken", badgeClass: "badge-success", icon: <CheckCircle2 size={14} /> },
@@ -258,9 +492,16 @@ function ReminderCard({
             >
               {reminder.medicine}
             </p>
-            <span className={`badge ${config.badgeClass}`} style={{ marginLeft: 8, flexShrink: 0 }}>
-              {config.label}
-            </span>
+            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+              <span className={`badge ${config.badgeClass}`}>{config.label}</span>
+              <button
+                onClick={onDelete}
+                className="text-slate-400 hover:text-red-600 p-1 transition-colors"
+                title="Delete reminder"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
 
           <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2 }}>

@@ -240,24 +240,27 @@ function MedicineListCard({
   onRemove: () => void;
 }) {
   return (
-    <div className="card" style={{ padding: "14px", position: "relative" }}>
+    <div className="card card-hover" style={{ padding: "14px", position: "relative" }}>
       <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
         {/* Icon */}
-        <div
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-primary-50)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 24,
-            flexShrink: 0,
-          }}
-        >
-          {medicine.icon}
-        </div>
+        <Link href={`/medicines/${medicine.id}`} style={{ textDecoration: "none" }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: "var(--radius-md)",
+              background: "var(--color-primary-50)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 24,
+              flexShrink: 0,
+              cursor: "pointer",
+            }}
+          >
+            {medicine.icon}
+          </div>
+        </Link>
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -291,7 +294,10 @@ function MedicineListCard({
 
             {/* Menu button */}
             <button
-              onClick={onMenuToggle}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMenuToggle();
+              }}
               style={{
                 background: "none",
                 border: "none",
@@ -307,18 +313,21 @@ function MedicineListCard({
           </div>
 
           {/* Dosage row */}
-          <div
-            style={{
-              marginTop: 8,
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <span className="badge badge-muted">{medicine.dosage}</span>
-            <span className="badge badge-muted">{medicine.frequency}</span>
-          </div>
+          <Link href={`/medicines/${medicine.id}`} style={{ textDecoration: "none" }}>
+            <div
+              style={{
+                marginTop: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+                cursor: "pointer",
+              }}
+            >
+              <span className="badge badge-muted">{medicine.dosage}</span>
+              <span className="badge badge-muted">{medicine.frequency}</span>
+            </div>
+          </Link>
 
           {/* Next dose + reminder */}
           <div
