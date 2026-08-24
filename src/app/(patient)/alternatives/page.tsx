@@ -1,35 +1,51 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle, RefreshCw, Loader2, Search } from "lucide-react";
 import { MedDisclaimer } from "@/components/shared/MedDisclaimer";
-import { mockGetAlternatives } from "@/lib/ai/mock-responses";
 import { formatCurrency } from "@/lib/utils";
 import type { GenericAlternative } from "@/lib/types";
 
-export default function AlternativesPage() {
+function AlternativesContent() {
+  const searchParams = useSearchParams();
   const [alternatives, setAlternatives] = useState<GenericAlternative[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const [searchInput, setSearchInput] = useState("Paracetamol 500mg");
-  const [activeSearch, setActiveSearch] = useState("Paracetamol 500mg");
+  const [searchInput, setSearchInput] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
+
+  const drugParam = searchParams.get("drug") || "";
+  const [prevDrug, setPrevDrug] = useState(drugParam);
+
+  if (drugParam !== prevDrug) {
+    setPrevDrug(drugParam);
+    setSearchInput(drugParam);
+    setActiveSearch(drugParam);
+  }
 
   useEffect(() => {
-    load(activeSearch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (activeSearch) {
+      load(activeSearch);
+    }
   }, [activeSearch]);
 
   async function load(query: string) {
     setLoading(true);
     setError(false);
     try {
-      // Parse "ingredient strength" from query string
       const parts = query.trim().split(/\s+/);
       const strength = parts.find((p) => /\d/.test(p)) || "";
       const ingredient = parts.filter((p) => !/\d/.test(p)).join(" ") || query;
-      const data = await mockGetAlternatives(ingredient, strength);
-      setAlternatives(data);
+
+      const res = await fetch("/api/ai/alternatives", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ingredient, strength }),
+      });
+      const json = await res.json();
+      setAlternatives(json.alternatives || []);
     } catch {
       setError(true);
     } finally {
@@ -44,16 +60,13 @@ export default function AlternativesPage() {
   }
 
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto" }}>
+    <div className="w-full max-w-[430px] md:max-w-none mx-auto">
       {/* Header */}
       <div
         style={{
           background: "var(--color-bg)",
           padding: "16px 20px 14px",
           borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)" }}>
@@ -103,22 +116,24 @@ export default function AlternativesPage() {
 
       <div style={{ padding: "16px" }}>
         {/* Current search context */}
-        <div
-          className="card"
-          style={{
-            padding: 14,
-            marginBottom: 12,
-            background: "var(--color-primary-50)",
-            border: "1px solid var(--color-primary-200)",
-          }}
-        >
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-primary)", marginBottom: 4 }}>
-            SEARCHING ALTERNATIVES FOR
-          </p>
-          <p style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)" }}>
-            {activeSearch}
-          </p>
-        </div>
+        {activeSearch && (
+          <div
+            className="card"
+            style={{
+              padding: 14,
+              marginBottom: 12,
+              background: "var(--color-primary-50)",
+              border: "1px solid var(--color-primary-200)",
+            }}
+          >
+            <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-primary)", marginBottom: 4 }}>
+              SEARCHING ALTERNATIVES FOR
+            </p>
+            <p style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)" }}>
+              {activeSearch}
+            </p>
+          </div>
+        )}
 
         {/* Important warning */}
         <div
@@ -256,5 +271,13 @@ export default function AlternativesPage() {
         <MedDisclaimer variant="full" />
       </div>
     </div>
+  );
+}
+
+export default function AlternativesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading alternatives...</div>}>
+      <AlternativesContent />
+    </Suspense>
   );
 }

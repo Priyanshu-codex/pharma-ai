@@ -1,26 +1,55 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Search, Loader2, Info, TrendingDown } from "lucide-react";
-import { mockGetPrices } from "@/lib/ai/mock-responses";
 import { formatCurrency } from "@/lib/utils";
 import type { PriceEntry } from "@/lib/types";
 
-export default function PricesPage() {
+function PricesContent() {
+  const searchParams = useSearchParams();
   const [prices, setPrices] = useState<PriceEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("Paracetamol 500mg");
-  const [query, setQuery] = useState("Paracetamol 500mg");
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+
+  const drugParam = searchParams.get("drug") || "Paracetamol 500mg";
+  const [prevDrug, setPrevDrug] = useState(drugParam);
+
+  if (drugParam !== prevDrug) {
+    setPrevDrug(drugParam);
+    setSearch(drugParam);
+    setQuery(drugParam);
+  }
 
   useEffect(() => {
+    if (!query) return;
     let isMounted = true;
-    mockGetPrices(query).then((data) => {
-      if (isMounted) {
-        setPrices(data);
-        setLoading(false);
+
+    async function fetchPrices() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/ai/prices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ medicineName: query }),
+        });
+        const data = await res.json();
+        if (isMounted) {
+          setPrices(data.prices || []);
+        }
+      } catch (err) {
+        console.error("[Prices Page] Fetch error:", err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    });
+    }
+
+    fetchPrices();
+
     return () => {
       isMounted = false;
     };
@@ -38,16 +67,13 @@ export default function PricesPage() {
   const savings = cheapest && mostExpensive ? mostExpensive - cheapest : null;
 
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto" }}>
+    <div className="w-full max-w-[430px] md:max-w-none mx-auto pb-6">
       {/* Header */}
       <div
         style={{
           background: "var(--color-bg)",
           padding: "16px 20px 14px",
           borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)" }}>
@@ -212,5 +238,13 @@ export default function PricesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PricesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading prices...</div>}>
+      <PricesContent />
+    </Suspense>
   );
 }

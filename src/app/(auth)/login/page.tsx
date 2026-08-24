@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -12,20 +12,25 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-
-  useEffect(() => {
+  const [error, setError] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "oauth_failed") {
+        return "Google authentication failed. Please try again.";
+      }
+    }
+    return null;
+  });
+  const [successMessage, setSuccessMessage] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("signup") === "success") {
-        setSuccessMessage("Account created successfully! Please sign in to continue.");
-      } else if (params.get("error") === "oauth_failed") {
-        setError("Google authentication failed. Please try again.");
+        return "Account created successfully. Please login to continue.";
       }
     }
-  }, []);
+    return null;
+  });
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   function validate() {
     const newErrors: typeof errors = {};

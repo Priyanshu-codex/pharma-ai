@@ -81,12 +81,8 @@ export default function ProfilePage() {
     setSuccessMsg(null);
 
     try {
-      const hasSupabase =
-        Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-        !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project") &&
-        Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-
-      if (hasSupabase) {
+      const { isSupabaseConfigured } = await import("@/lib/supabase/data-service");
+      if (isSupabaseConfigured()) {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         await supabase.auth.updateUser({
@@ -111,12 +107,8 @@ export default function ProfilePage() {
     const newRole: UserRole = role === "patient" ? "student" : "patient";
     setLoading(true);
     try {
-      const hasSupabase =
-        Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-        !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project") &&
-        Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-
-      if (hasSupabase) {
+      const { isSupabaseConfigured } = await import("@/lib/supabase/data-service");
+      if (isSupabaseConfigured()) {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         await supabase.auth.updateUser({
@@ -164,12 +156,9 @@ export default function ProfilePage() {
     if (deleteInput.trim().toUpperCase() !== "DELETE") return;
     setLoading(true);
     try {
-      const hasSupabase =
-        Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-        !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project") &&
-        Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-
-      if (hasSupabase) {
+      await fetch("/api/user/delete", { method: "POST" });
+      const { isSupabaseConfigured } = await import("@/lib/supabase/data-service");
+      if (isSupabaseConfigured()) {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         await supabase.auth.signOut();
@@ -195,9 +184,6 @@ export default function ProfilePage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <div className="flex items-center gap-3">
@@ -249,7 +235,7 @@ export default function ProfilePage() {
                     color: "white",
                   }}
                 >
-                  {name.charAt(0).toUpperCase()}
+                  {(name || "U").charAt(0).toUpperCase()}
                 </div>
                 <button
                   className="absolute bottom-0 right-0 p-1.5 bg-white border border-slate-200 rounded-full shadow-sm text-slate-600 hover:text-slate-900"

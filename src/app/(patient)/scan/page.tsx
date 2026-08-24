@@ -26,7 +26,30 @@ export default function ScanPage() {
   const [showAllInfo, setShowAllInfo] = useState(false);
   const [addedToMeds, setAddedToMeds] = useState(false);
   const [scanErrorMsg, setScanErrorMsg] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [frequency, setFrequency] = useState("Once daily");
+  const [nextDoseTime, setNextDoseTime] = useState("09:00");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleAddMedicineConfirm() {
+    setShowAddModal(false);
+    setAddedToMeds(true);
+    if (result?.medicine) {
+      const { addMedicineToDB } = await import("@/lib/supabase/data-service");
+      await addMedicineToDB({
+        name: result.medicine.name,
+        generic_name: result.medicine.active_ingredient,
+        brand_name: result.medicine.name,
+        manufacturer: result.medicine.manufacturer,
+        strength: result.medicine.strength,
+        dosage_form: result.medicine.dosage_form,
+        frequency,
+        next_dose: nextDoseTime,
+        reminder_enabled: true,
+        icon: "💊",
+      });
+    }
+  }
 
   async function handleFileSelect(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -95,9 +118,6 @@ export default function ScanPage() {
           background: "var(--color-bg)",
           padding: "16px 20px 14px",
           borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <h1
@@ -246,6 +266,7 @@ export default function ScanPage() {
                     aspectRatio: "4/3",
                   }}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={preview}
                     alt="Medicine being scanned"
@@ -339,6 +360,7 @@ export default function ScanPage() {
                   }}
                 >
                   {preview && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={preview}
                       alt={result.medicine.name}
@@ -532,24 +554,7 @@ export default function ScanPage() {
                 <button
                   className="btn-primary"
                   style={{ justifyContent: "center" }}
-                  onClick={async () => {
-                    setAddedToMeds(true);
-                    if (result?.medicine) {
-                      const { addMedicineToDB } = await import("@/lib/supabase/data-service");
-                      await addMedicineToDB({
-                        name: result.medicine.name,
-                        generic_name: result.medicine.active_ingredient,
-                        brand_name: result.medicine.name,
-                        manufacturer: result.medicine.manufacturer,
-                        strength: result.medicine.strength,
-                        dosage_form: result.medicine.dosage_form,
-                        frequency: "Once daily",
-                        next_dose: "09:00",
-                        reminder_enabled: true,
-                        icon: "💊",
-                      });
-                    }
-                  }}
+                  onClick={() => setShowAddModal(true)}
                   disabled={addedToMeds}
                 >
                   {addedToMeds ? (
@@ -567,14 +572,14 @@ export default function ScanPage() {
 
                 <div style={{ display: "flex", gap: 8 }}>
                   <Link
-                    href="/alternatives"
+                    href={`/alternatives?drug=${encodeURIComponent(result?.medicine?.name || "")}`}
                     className="btn-secondary"
                     style={{ flex: 1, justifyContent: "center" }}
                   >
                     View Alternatives
                   </Link>
                   <Link
-                    href="/prices"
+                    href={`/prices?drug=${encodeURIComponent(result?.medicine?.name || "")}`}
                     className="btn-secondary"
                     style={{ flex: 1, justifyContent: "center" }}
                   >
@@ -646,6 +651,57 @@ export default function ScanPage() {
             </motion.div>
           )}
         </AnimatePresence>
+      {/* ── ADD MEDICINE CONFIRMATION MODAL ── */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900">Add to My Medicines</h3>
+            <p className="text-xs text-slate-500">
+              Confirm dosage schedule for <strong>{result?.medicine?.name}</strong>
+            </p>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Frequency</label>
+              <select
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value)}
+                className="input-base"
+              >
+                <option value="Once daily">Once daily</option>
+                <option value="Twice daily">Twice daily</option>
+                <option value="Three times daily">Three times daily</option>
+                <option value="Four times daily">Four times daily</option>
+                <option value="As needed">As needed</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Next Dose Time</label>
+              <input
+                type="time"
+                value={nextDoseTime}
+                onChange={(e) => setNextDoseTime(e.target.value)}
+                className="input-base"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="btn-secondary flex-1 justify-center text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddMedicineConfirm}
+                className="btn-primary flex-1 justify-center text-xs"
+              >
+                Confirm & Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

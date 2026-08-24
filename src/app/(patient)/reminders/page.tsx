@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -13,6 +13,7 @@ import {
   Bell,
 } from "lucide-react";
 import { formatTime } from "@/lib/utils";
+import { NoRemindersEmpty } from "@/components/shared/EmptyState";
 
 type ReminderStatus = "pending" | "taken" | "skipped" | "snoozed";
 
@@ -25,47 +26,22 @@ interface Reminder {
   enabled: boolean;
 }
 
-const INITIAL_REMINDERS: Reminder[] = [
-  {
-    id: "r1",
-    medicine: "Metformin 500mg",
-    dosage: "1 tablet with breakfast",
-    time: "08:00",
-    status: "taken",
-    enabled: true,
-  },
-  {
-    id: "r2",
-    medicine: "Lisinopril 10mg",
-    dosage: "1 tablet",
-    time: "08:00",
-    status: "pending",
-    enabled: true,
-  },
-  {
-    id: "r3",
-    medicine: "Metformin 500mg",
-    dosage: "1 tablet with dinner",
-    time: "20:00",
-    status: "pending",
-    enabled: true,
-  },
-  {
-    id: "r4",
-    medicine: "Atorvastatin 20mg",
-    dosage: "1 tablet at bedtime",
-    time: "21:00",
-    status: "pending",
-    enabled: true,
-  },
-];
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const total = h * 60 + m + minutes;
+  const newH = Math.floor(total / 60) % 24;
+  const newM = total % 60;
+  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+}
 
 export default function RemindersPage() {
-  const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSnoozeModal, setShowSnoozeModal] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const remindersRef = useRef<Reminder[]>([]);
 
   // Form states for Add Reminder modal
   const [newMedName, setNewMedName] = useState("");
@@ -76,21 +52,26 @@ export default function RemindersPage() {
   useEffect(() => {
     import("@/lib/supabase/data-service").then(({ fetchUserReminders }) => {
       fetchUserReminders().then((data) => {
-        if (data && data.length > 0) {
-          setReminders(
-            data.map((r) => ({
-              id: r.id,
-              medicine: r.medicine,
-              dosage: r.dosage,
-              time: r.time,
-              status: r.status,
-              enabled: r.enabled,
-            }))
-          );
+        if (data) {
+          const formatted = data.map((r) => ({
+            id: r.id,
+            medicine: r.medicine,
+            dosage: r.dosage,
+            time: r.time,
+            status: r.status,
+            enabled: r.enabled,
+          }));
+          setReminders(formatted);
+          remindersRef.current = formatted;
         }
       });
     });
   }, []);
+
+  // Keep ref in sync with state (avoids stale closure in interval)
+  useEffect(() => {
+    remindersRef.current = reminders;
+  }, [reminders]);
 
   // Request Notification permission & setup interval check for due reminders
   useEffect(() => {
@@ -104,12 +85,13 @@ export default function RemindersPage() {
       });
     }
 
-    // Interval checker for due reminders (every 30s)
-    const interval = setInterval(() => {
+    // Use a single persistent interval via ref — reads from remindersRef to avoid stale closure
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
       const now = new Date();
       const currentHoursMin = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
-      reminders.forEach((r) => {
+      remindersRef.current.forEach((r) => {
         if (r.enabled && r.status === "pending" && r.time === currentHoursMin) {
           if (Notification.permission === "granted") {
             new Notification(`💊 PharmaAI Reminder: ${r.medicine}`, {
@@ -121,8 +103,10 @@ export default function RemindersPage() {
       });
     }, 30000);
 
-    return () => clearInterval(interval);
-  }, [reminders]);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   async function sendTestNotification() {
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -142,13 +126,13 @@ export default function RemindersPage() {
     }
   }
 
-  async function updateStatus(id: string, status: ReminderStatus) {
+  async function updateStatus(id: string, status: ReminderStatus, medicineName?: string) {
     setLoadingId(id);
     setReminders((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status } : r))
     );
     const { updateReminderStatusInDB } = await import("@/lib/supabase/data-service");
-    await updateReminderStatusInDB(id, status);
+    await updateReminderStatusInDB(id, status, medicineName);
     setLoadingId(null);
   }
 
@@ -194,16 +178,13 @@ export default function RemindersPage() {
   });
 
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto" }}>
+    <div className="w-full max-w-[430px] md:max-w-none mx-auto pb-6">
       {/* Header */}
       <div
         style={{
           background: "var(--color-bg)",
           padding: "16px 20px 14px",
           borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -275,40 +256,44 @@ export default function RemindersPage() {
         </motion.div>
 
         {/* Reminders by time group */}
-        {Object.keys(timeGroups)
-          .sort()
-          .map((time) => (
-            <div key={time} style={{ marginBottom: 16 }}>
-              <p
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "var(--color-text-secondary)",
-                  marginBottom: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <AlarmClock size={14} />
-                {formatTime(time)}
-              </p>
+        {reminders.length === 0 ? (
+          <NoRemindersEmpty onAction={() => setShowAddModal(true)} />
+        ) : (
+          Object.keys(timeGroups)
+            .sort()
+            .map((time) => (
+              <div key={time} style={{ marginBottom: 16 }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "var(--color-text-secondary)",
+                    marginBottom: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <AlarmClock size={14} />
+                  {formatTime(time)}
+                </p>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {timeGroups[time].map((reminder) => (
-                  <ReminderCard
-                    key={reminder.id}
-                    reminder={reminder}
-                    isLoading={loadingId === reminder.id}
-                    onTaken={() => updateStatus(reminder.id, "taken")}
-                    onSkipped={() => updateStatus(reminder.id, "skipped")}
-                    onSnoozed={() => setShowSnoozeModal(reminder.id)}
-                    onDelete={() => setDeleteConfirmId(reminder.id)}
-                  />
-                ))}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {timeGroups[time].map((reminder) => (
+                    <ReminderCard
+                      key={reminder.id}
+                      reminder={reminder}
+                      isLoading={loadingId === reminder.id}
+                      onTaken={() => updateStatus(reminder.id, "taken", reminder.medicine)}
+                      onSkipped={() => updateStatus(reminder.id, "skipped", reminder.medicine)}
+                      onSnoozed={() => setShowSnoozeModal(reminder.id)}
+                      onDelete={() => setDeleteConfirmId(reminder.id)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+        )}
       </div>
 
       {/* ── 1. ADD REMINDER MODAL ── */}
@@ -380,8 +365,20 @@ export default function RemindersPage() {
               {[15, 30, 60].map((mins) => (
                 <button
                   key={mins}
-                  onClick={() => {
-                    updateStatus(showSnoozeModal, "snoozed");
+                  onClick={async () => {
+                    const reminder = reminders.find((r) => r.id === showSnoozeModal);
+                    if (reminder) {
+                      const newTime = addMinutesToTime(reminder.time, mins);
+                      setReminders((prev) =>
+                        prev.map((r) =>
+                          r.id === showSnoozeModal
+                            ? { ...r, status: "snoozed", time: newTime }
+                            : r
+                        )
+                      );
+                      const { snoozeReminderInDB } = await import("@/lib/supabase/data-service");
+                      await snoozeReminderInDB(showSnoozeModal!, newTime);
+                    }
                     setShowSnoozeModal(null);
                   }}
                   className="w-full py-2.5 px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 transition-colors"

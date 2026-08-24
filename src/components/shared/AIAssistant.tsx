@@ -16,6 +16,17 @@ import { MedDisclaimer } from "@/components/shared/MedDisclaimer";
 import { generateId } from "@/lib/utils";
 import type { ChatMessage, UserRole } from "@/lib/types";
 
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: () => void;
+  onresult: (event: { results: Array<Array<{ transcript: string }>> }) => void;
+  onerror: () => void;
+  onend: () => void;
+  start: () => void;
+}
+
 const PATIENT_SUGGESTIONS = [
   "What is Paracetamol used for?",
   "Can I take ibuprofen with blood pressure medication?",
@@ -368,7 +379,41 @@ export function AIAssistant({ mode }: AIAssistantProps) {
 
           {/* Voice button */}
           <button
-            onClick={() => setIsListening((v) => !v)}
+            onClick={() => {
+              if (isListening) {
+                setIsListening(false);
+                return;
+              }
+
+              const SpeechRecognition =
+                (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).SpeechRecognition ||
+                (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).webkitSpeechRecognition;
+
+              if (!SpeechRecognition) {
+                alert("Speech recognition is not supported in this browser.");
+                return;
+              }
+
+              try {
+                const recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = "en-US";
+
+                recognition.onstart = () => setIsListening(true);
+                recognition.onresult = (event: { results: Array<Array<{ transcript: string }>> }) => {
+                  const transcript = event.results[0][0].transcript;
+                  setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+                  setIsListening(false);
+                };
+                recognition.onerror = () => setIsListening(false);
+                recognition.onend = () => setIsListening(false);
+
+                recognition.start();
+              } catch {
+                setIsListening(false);
+              }
+            }}
             style={{
               width: 36,
               height: 36,
@@ -384,6 +429,7 @@ export function AIAssistant({ mode }: AIAssistantProps) {
               transition: "all 0.2s",
             }}
             aria-label={isListening ? "Stop voice input" : "Start voice input"}
+            title={isListening ? "Listening..." : "Click to speak"}
           >
             {isListening ? <MicOff size={18} /> : <Mic size={18} />}
           </button>

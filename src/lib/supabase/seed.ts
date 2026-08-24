@@ -25,18 +25,61 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
 async function seed() {
   console.log("🌱 Starting PharmaAI Supabase Database Seed...");
 
-  // 1. Create or verify Demo User Profile
-  const demoUserId = "00000000-0000-0000-0000-000000000001";
+  let targetUserId: string | null = null;
+
+  // 1. Obtain a valid auth user ID from Supabase Auth
+  try {
+    const { data: usersData, error: listErr } = await supabase.auth.admin.listUsers();
+    if (!listErr && usersData?.users && usersData.users.length > 0) {
+      targetUserId = usersData.users[0].id;
+      console.log(`🔑 Using existing Auth User ID: ${targetUserId} (${usersData.users[0].email})`);
+    } else {
+      // Create seed auth user via admin API
+      const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
+        email: "priyanshu@pharmaai.app",
+        password: "Password123!",
+        email_confirm: true,
+        user_metadata: { full_name: "Priyanshu", role: "patient" },
+      });
+
+      if (!createErr && newUser?.user) {
+        targetUserId = newUser.user.id;
+        console.log(`✅ Created Demo Auth User: ${targetUserId}`);
+      } else {
+        // Fallback: try standard signUp
+        const { data: signUpData } = await supabase.auth.signUp({
+          email: "priyanshu@pharmaai.app",
+          password: "Password123!",
+          options: { data: { full_name: "Priyanshu", role: "patient" } },
+        });
+        if (signUpData?.user) {
+          targetUserId = signUpData.user.id;
+          console.log(`✅ Signed up Demo User: ${targetUserId}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Auth user resolution note:", err);
+  }
+
+  if (!targetUserId) {
+    console.error("❌ Could not resolve or create an Auth User. Please check your SUPABASE_SERVICE_ROLE_KEY.");
+    return;
+  }
+
+  // 2. Upsert Profile
   const { data: profile, error: profileErr } = await supabase
     .from("profiles")
     .upsert(
       {
-        id: demoUserId,
+        id: targetUserId,
         full_name: "Priyanshu",
         email: "priyanshu@pharmaai.app",
         role: "patient",
@@ -48,15 +91,15 @@ async function seed() {
     .single();
 
   if (profileErr) {
-    console.warn("Profile seed warning (RLS/Auth dependent):", profileErr.message);
+    console.warn("Profile seed warning:", profileErr.message);
   } else {
     console.log("✅ Seeded User Profile:", profile?.full_name);
   }
 
-  // 2. Seed Medicines
+  // 3. Seed Medicines
   const sampleMedicines = [
     {
-      user_id: demoUserId,
+      user_id: targetUserId,
       name: "Metformin 500mg",
       generic_name: "Metformin Hydrochloride",
       brand_name: "Glucophage",
@@ -71,7 +114,7 @@ async function seed() {
       icon: "💊",
     },
     {
-      user_id: demoUserId,
+      user_id: targetUserId,
       name: "Lisinopril 10mg",
       generic_name: "Lisinopril",
       brand_name: "Zestril",
@@ -86,7 +129,7 @@ async function seed() {
       icon: "💊",
     },
     {
-      user_id: demoUserId,
+      user_id: targetUserId,
       name: "Atorvastatin 20mg",
       generic_name: "Atorvastatin Calcium",
       brand_name: "Lipitor",
@@ -101,7 +144,7 @@ async function seed() {
       icon: "💊",
     },
     {
-      user_id: demoUserId,
+      user_id: targetUserId,
       name: "Paracetamol 650mg",
       generic_name: "Acetaminophen",
       brand_name: "Dolo 650",
@@ -128,10 +171,10 @@ async function seed() {
     console.log(`✅ Seeded ${meds?.length || sampleMedicines.length} Medicines into Supabase.`);
   }
 
-  // 3. Seed Reminders
+  // 4. Seed Reminders
   const sampleReminders = [
     {
-      user_id: demoUserId,
+      user_id: targetUserId,
       medicine: "Metformin 500mg",
       dosage: "1 tablet with breakfast",
       time: "08:00",
@@ -139,15 +182,15 @@ async function seed() {
       enabled: true,
     },
     {
-      user_id: demoUserId,
+      user_id: targetUserId,
       medicine: "Lisinopril 10mg",
       dosage: "1 tablet",
       time: "08:00",
-      status: "pending",
+      status: "taken",
       enabled: true,
     },
     {
-      user_id: demoUserId,
+      user_id: targetUserId,
       medicine: "Metformin 500mg",
       dosage: "1 tablet with dinner",
       time: "20:00",
@@ -155,7 +198,7 @@ async function seed() {
       enabled: true,
     },
     {
-      user_id: demoUserId,
+      user_id: targetUserId,
       medicine: "Atorvastatin 20mg",
       dosage: "1 tablet at bedtime",
       time: "21:00",
@@ -175,14 +218,14 @@ async function seed() {
     console.log(`✅ Seeded ${rems?.length || sampleReminders.length} Reminders into Supabase.`);
   }
 
-  // 4. Seed Adherence Logs
+  // 5. Seed Adherence Logs
   const sampleAdherence = [
-    { user_id: demoUserId, medicine: "Metformin 500mg", status: "taken", logged_at: new Date(Date.now() - 86400000 * 3).toISOString() },
-    { user_id: demoUserId, medicine: "Lisinopril 10mg", status: "taken", logged_at: new Date(Date.now() - 86400000 * 3).toISOString() },
-    { user_id: demoUserId, medicine: "Metformin 500mg", status: "taken", logged_at: new Date(Date.now() - 86400000 * 2).toISOString() },
-    { user_id: demoUserId, medicine: "Lisinopril 10mg", status: "taken", logged_at: new Date(Date.now() - 86400000 * 2).toISOString() },
-    { user_id: demoUserId, medicine: "Metformin 500mg", status: "taken", logged_at: new Date(Date.now() - 86400000).toISOString() },
-    { user_id: demoUserId, medicine: "Lisinopril 10mg", status: "skipped", logged_at: new Date(Date.now() - 86400000).toISOString() },
+    { user_id: targetUserId, medicine: "Metformin 500mg", status: "taken", logged_at: new Date(Date.now() - 86400000 * 3).toISOString() },
+    { user_id: targetUserId, medicine: "Lisinopril 10mg", status: "taken", logged_at: new Date(Date.now() - 86400000 * 3).toISOString() },
+    { user_id: targetUserId, medicine: "Metformin 500mg", status: "taken", logged_at: new Date(Date.now() - 86400000 * 2).toISOString() },
+    { user_id: targetUserId, medicine: "Lisinopril 10mg", status: "taken", logged_at: new Date(Date.now() - 86400000 * 2).toISOString() },
+    { user_id: targetUserId, medicine: "Metformin 500mg", status: "taken", logged_at: new Date(Date.now() - 86400000).toISOString() },
+    { user_id: targetUserId, medicine: "Lisinopril 10mg", status: "skipped", logged_at: new Date(Date.now() - 86400000).toISOString() },
   ];
 
   const { error: adhErr } = await supabase.from("adherence_logs").insert(sampleAdherence);

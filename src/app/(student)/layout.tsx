@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TopNav } from "@/components/layout/TopNav";
+import { MobileNav } from "@/components/layout/MobileNav";
 import { BottomNav } from "@/components/layout/BottomNav";
 
 export default function StudentLayout({
@@ -11,12 +12,7 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [userName, setUserName] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("pharmaai_name") || "User";
-    }
-    return "User";
-  });
+  const [userName, setUserName] = useState("User");
 
   useEffect(() => {
     import("@/lib/supabase/client").then(({ createClient }) => {
@@ -25,32 +21,21 @@ export default function StudentLayout({
         if (!user && !localStorage.getItem("pharmaai_auth")) {
           router.replace("/login");
         } else if (user) {
-          if (user.user_metadata?.full_name) {
-            setUserName(user.user_metadata.full_name);
+          const name = user.user_metadata?.full_name || localStorage.getItem("pharmaai_name");
+          if (name) {
+            setUserName(name);
           }
           const role = user.user_metadata?.role || localStorage.getItem("pharmaai_role");
           if (!role) {
             router.replace("/role");
           }
+        } else {
+          const stored = localStorage.getItem("pharmaai_name");
+          if (stored) setUserName(stored);
         }
       });
     });
   }, [router]);
-
-  async function handleSwitchRole() {
-    try {
-      localStorage.setItem("pharmaai_role", "patient");
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      await supabase.auth.updateUser({
-        data: { role: "patient" },
-      });
-    } catch {
-      // Fallback
-    } finally {
-      router.replace("/dashboard");
-    }
-  }
 
   return (
     <div
@@ -61,12 +46,18 @@ export default function StudentLayout({
         flexDirection: "column",
       }}
     >
+      {/* Mobile Top Nav (hidden on desktop) */}
+      <MobileNav
+        mode="student"
+        userName={userName}
+        userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
+      />
+
       {/* Desktop Top Nav */}
       <TopNav
         mode="student"
         userName={userName}
         userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
-        onRoleSwitch={handleSwitchRole}
       />
 
       {/* Page Content */}

@@ -78,6 +78,27 @@ export default function QuizzesPage() {
       setSelectedAnswer(null);
       setShowAnswer(false);
     } else {
+      // Save quiz result to history
+      if (typeof window !== "undefined") {
+        try {
+          const existing = JSON.parse(localStorage.getItem("pharmaai_quiz_history") || "[]");
+          const finalScore = answers.filter((a) => a.isCorrect).length;
+          const finalTime = startTime ? Math.round((new Date().getTime() - startTime.getTime()) / 1000) : 0;
+          const record = {
+            id: `quiz_${Date.now()}`,
+            topic,
+            difficulty,
+            score: finalScore,
+            total: questions.length,
+            percentage: Math.round((finalScore / questions.length) * 100),
+            timeTaken: finalTime,
+            completedAt: new Date().toISOString(),
+          };
+          localStorage.setItem("pharmaai_quiz_history", JSON.stringify([record, ...existing]));
+        } catch (e) {
+          console.warn("Failed to save quiz result:", e);
+        }
+      }
       setPhase("result");
     }
   }
@@ -104,9 +125,6 @@ export default function QuizzesPage() {
           background: "var(--color-bg)",
           padding: "16px 20px 14px",
           borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)" }}>

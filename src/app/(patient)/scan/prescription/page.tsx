@@ -55,9 +55,6 @@ export default function PrescriptionPage() {
           background: "var(--color-bg)",
           padding: "16px 20px 14px",
           borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <h1
@@ -247,6 +244,7 @@ export default function PrescriptionPage() {
                     maxHeight: 220,
                   }}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={preview}
                     alt="Prescription being scanned"
@@ -335,6 +333,7 @@ export default function PrescriptionPage() {
                   <div className="md:col-span-1">
                     <p className="section-title">Original Prescription</p>
                     <div className="card p-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={preview}
                         alt="Prescription"

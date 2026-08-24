@@ -1,5 +1,14 @@
 import { createClient } from "./client";
 
+// ── Supabase Configuration Check ─────────────────────────────
+export function isSupabaseConfigured(): boolean {
+  return (
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project") &&
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  );
+}
+
 export interface DBProfile {
   id: string;
   full_name: string;
@@ -149,66 +158,28 @@ export async function fetchUserMedicines(): Promise<DBMedicine[]> {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         return data as DBMedicine[];
       }
     } catch (err) {
-      console.warn("[DataService] Medicines DB fetch fallback:", err);
+      console.warn("[DataService] Medicines DB fetch error:", err);
     }
   }
 
-  // Fallback to local storage or initial defaults
+  // Check local storage
   if (typeof window !== "undefined") {
     const stored = localStorage.getItem("pharmaai_medicines");
     if (stored) {
       try { return JSON.parse(stored); } catch {}
     }
   }
-  return [
-    {
-      id: "m1",
-      user_id: user?.id || "demo",
-      name: "Metformin 500mg",
-      generic_name: "Metformin HCl",
-      brand_name: "Glucophage",
-      manufacturer: "Sun Pharma",
-      strength: "500mg",
-      dosage_form: "Tablet",
-      dosage_instructions: "1 tablet with meal",
-      frequency: "Twice daily",
-      next_dose: "20:00",
-      reminder_enabled: true,
-      icon: "💊",
-    },
-    {
-      id: "m2",
-      user_id: user?.id || "demo",
-      name: "Lisinopril 10mg",
-      generic_name: "Lisinopril",
-      brand_name: "Zestril",
-      manufacturer: "Cipla Ltd",
-      strength: "10mg",
-      dosage_form: "Tablet",
-      dosage_instructions: "1 tablet in morning",
-      frequency: "Once daily",
-      next_dose: "08:00",
-      reminder_enabled: true,
-      icon: "💊",
-    },
-  ];
+
+  return [];
 }
 
 export async function addMedicineToDB(medicine: Omit<DBMedicine, "id" | "user_id">): Promise<DBMedicine> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const userId = user?.id || "demo_user";
-
-  const newMed: DBMedicine = {
-    id: `med_${Date.now()}`,
-    user_id: userId,
-    ...medicine,
-    created_at: new Date().toISOString(),
-  };
 
   if (user) {
     try {
@@ -226,10 +197,19 @@ export async function addMedicineToDB(medicine: Omit<DBMedicine, "id" | "user_id
     }
   }
 
-  // Sync to local storage
-  const current = await fetchUserMedicines();
-  const updated = [newMed, ...current];
-  localStorage.setItem("pharmaai_medicines", JSON.stringify(updated));
+  // Local storage fallback (no authenticated user)
+  const newMed: DBMedicine = {
+    id: `med_${Date.now()}`,
+    user_id: user?.id || "local",
+    ...medicine,
+    created_at: new Date().toISOString(),
+  };
+
+  if (typeof window !== "undefined") {
+    const current = await fetchUserMedicines();
+    const updated = [newMed, ...current];
+    localStorage.setItem("pharmaai_medicines", JSON.stringify(updated));
+  }
   return newMed;
 }
 
@@ -265,11 +245,11 @@ export async function fetchUserReminders(): Promise<DBReminder[]> {
         .eq("user_id", user.id)
         .order("time", { ascending: true });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         return data as DBReminder[];
       }
     } catch (err) {
-      console.warn("[DataService] Reminders DB fetch fallback:", err);
+      console.warn("[DataService] Reminders DB fetch error:", err);
     }
   }
 
@@ -280,35 +260,7 @@ export async function fetchUserReminders(): Promise<DBReminder[]> {
     }
   }
 
-  return [
-    {
-      id: "r1",
-      user_id: user?.id || "demo",
-      medicine: "Metformin 500mg",
-      dosage: "1 tablet with breakfast",
-      time: "08:00",
-      status: "taken",
-      enabled: true,
-    },
-    {
-      id: "r2",
-      user_id: user?.id || "demo",
-      medicine: "Lisinopril 10mg",
-      dosage: "1 tablet",
-      time: "08:00",
-      status: "pending",
-      enabled: true,
-    },
-    {
-      id: "r3",
-      user_id: user?.id || "demo",
-      medicine: "Metformin 500mg",
-      dosage: "1 tablet with dinner",
-      time: "20:00",
-      status: "pending",
-      enabled: true,
-    },
-  ];
+  return [];
 }
 
 export async function saveReminderToDB(reminder: Omit<DBReminder, "id" | "user_id">): Promise<DBReminder> {
@@ -345,7 +297,8 @@ export async function saveReminderToDB(reminder: Omit<DBReminder, "id" | "user_i
 
 export async function updateReminderStatusInDB(
   reminderId: string,
-  status: DBReminder["status"]
+  status: DBReminder["status"],
+  medicineName?: string
 ): Promise<boolean> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -358,13 +311,18 @@ export async function updateReminderStatusInDB(
         .eq("id", reminderId)
         .eq("user_id", user.id);
 
-      // Log adherence event
+      // Log adherence event with actual medicine name
       if (status === "taken" || status === "skipped" || status === "snoozed") {
+        // Look up medicine name from local state if not provided
+        const allReminders = await fetchUserReminders();
+        const reminder = allReminders.find((r) => r.id === reminderId);
+        const loggedMedicine = medicineName || reminder?.medicine || "Unknown Medicine";
+
         await supabase.from("adherence_logs").insert([
           {
             user_id: user.id,
             reminder_id: reminderId,
-            medicine: "Medication",
+            medicine: loggedMedicine,
             status,
             logged_at: new Date().toISOString(),
           },
@@ -378,6 +336,68 @@ export async function updateReminderStatusInDB(
   const current = await fetchUserReminders();
   const updated = current.map((r) => (r.id === reminderId ? { ...r, status } : r));
   localStorage.setItem("pharmaai_reminders", JSON.stringify(updated));
+  return true;
+}
+
+export async function snoozeReminderInDB(
+  reminderId: string,
+  newTime: string
+): Promise<boolean> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    try {
+      await supabase
+        .from("reminders")
+        .update({ status: "snoozed", time: newTime, updated_at: new Date().toISOString() })
+        .eq("id", reminderId)
+        .eq("user_id", user.id);
+    } catch (err) {
+      console.warn("[DataService] Snooze reminder error:", err);
+    }
+  }
+
+  const current = await fetchUserReminders();
+  const updated = current.map((r) =>
+    r.id === reminderId ? { ...r, status: "snoozed" as const, time: newTime } : r
+  );
+  localStorage.setItem("pharmaai_reminders", JSON.stringify(updated));
+  return true;
+}
+
+export async function updateMedicineReminderInDB(
+  medicineId: string,
+  reminderEnabled: boolean
+): Promise<boolean> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    try {
+      await supabase
+        .from("medicines")
+        .update({ reminder_enabled: reminderEnabled, updated_at: new Date().toISOString() })
+        .eq("id", medicineId)
+        .eq("user_id", user.id);
+    } catch (err) {
+      console.warn("[DataService] Update medicine reminder error:", err);
+    }
+  }
+
+  // Update local storage
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("pharmaai_medicines");
+    if (stored) {
+      try {
+        const all = JSON.parse(stored);
+        const updated = all.map((m: DBMedicine) =>
+          m.id === medicineId ? { ...m, reminder_enabled: reminderEnabled } : m
+        );
+        localStorage.setItem("pharmaai_medicines", JSON.stringify(updated));
+      } catch {}
+    }
+  }
   return true;
 }
 

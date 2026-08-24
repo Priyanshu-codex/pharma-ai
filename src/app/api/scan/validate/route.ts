@@ -89,7 +89,10 @@ export async function POST(req: Request) {
         ]);
 
         const responseText = result.response.text();
-        console.log("[Scan API] Gemini Vision raw response:", responseText.substring(0, 300));
+
+        if (process.env.NODE_ENV === "development") {
+          console.log("[Scan API] Gemini Vision raw response:", responseText.substring(0, 300));
+        }
 
         // Parse JSON from the response
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { TopNav } from "@/components/layout/TopNav";
+import { MobileNav } from "@/components/layout/MobileNav";
 import type { UserRole } from "@/lib/types";
 
 export default function AssistantLayout({
@@ -12,29 +13,37 @@ export default function AssistantLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [userName, setUserName] = useState("Priyanshu");
-  const [mode] = useState<UserRole>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("pharmaai_role") as UserRole | null;
-      if (stored === "patient" || stored === "student") {
-        return stored;
-      }
-    }
-    return "patient";
-  });
+  const [userName, setUserName] = useState("User");
+  const [mode, setMode] = useState<UserRole>("patient");
 
   useEffect(() => {
+    const storedName = localStorage.getItem("pharmaai_name");
+    const storedRole = localStorage.getItem("pharmaai_role") as UserRole | null;
+    queueMicrotask(() => {
+      if (storedName) setUserName(storedName);
+      if (storedRole === "patient" || storedRole === "student") {
+        setMode(storedRole);
+      }
+    });
+
     import("@/lib/supabase/client").then(({ createClient }) => {
       const supabase = createClient();
       supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user && !localStorage.getItem("pharmaai_auth")) {
           router.replace("/login");
-        } else if (user?.user_metadata?.full_name) {
-          setUserName(user.user_metadata.full_name);
+        } else if (user) {
+          const name = user.user_metadata?.full_name || localStorage.getItem("pharmaai_name");
+          if (name) setUserName(name);
+          const role = user.user_metadata?.role || localStorage.getItem("pharmaai_role");
+          if (role === "patient" || role === "student") {
+            setMode(role as UserRole);
+          }
         }
       });
     });
   }, [router]);
+
+  const userInitials = userName && userName !== "User" ? userName.charAt(0).toUpperCase() : "U";
 
   return (
     <div
@@ -45,7 +54,8 @@ export default function AssistantLayout({
         flexDirection: "column",
       }}
     >
-      <TopNav mode={mode} userName={userName} userInitials={userName ? userName.charAt(0).toUpperCase() : "P"} />
+      <MobileNav mode={mode} userName={userName} userInitials={userInitials} />
+      <TopNav mode={mode} userName={userName} userInitials={userInitials} />
       <main style={{ flex: 1 }}>{children}</main>
       <div className="md:hidden">
         <BottomNav mode={mode} />

@@ -42,8 +42,8 @@ export async function GET(request: Request) {
           if (profile?.role) {
             role = profile.role;
           }
-        } catch {
-          // Profile lookup fallback
+        } catch (profileErr) {
+          console.warn("[Auth Callback] Profile lookup note:", profileErr);
         }
       }
 

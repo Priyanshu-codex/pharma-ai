@@ -11,18 +11,10 @@ import {
   Clock,
   CheckCircle2,
 } from "lucide-react";
-import { getGreeting, formatTime, adherenceLabel, getInitials } from "@/lib/utils";
+import { getGreeting, formatTime, adherenceLabel } from "@/lib/utils";
+import { GreetingHeader } from "@/components/shared/GreetingHeader";
 
 // ── Default Fallback Data ──────────────────────────────────
-const DEMO_USER = { name: "", role: "Patient" };
-
-const MOCK_ADHERENCE = {
-  percentage: 78,
-  taken: 14,
-  total: 18,
-  streak: 4,
-};
-
 interface DashboardReminder {
   id: string;
   medicine: string;
@@ -31,60 +23,25 @@ interface DashboardReminder {
   dosage: string;
 }
 
-const MOCK_REMINDERS: DashboardReminder[] = [
-  {
-    id: "r1",
-    medicine: "Metformin 500mg",
-    time: "08:00",
-    status: "taken",
-    dosage: "1 tablet",
-  },
-  {
-    id: "r2",
-    medicine: "Lisinopril 10mg",
-    time: "08:00",
-    status: "pending",
-    dosage: "1 tablet",
-  },
-  {
-    id: "r3",
-    medicine: "Atorvastatin 20mg",
-    time: "21:00",
-    status: "pending",
-    dosage: "1 tablet",
-  },
-];
-
-const MOCK_MEDICINES = [
-  {
-    id: "m1",
-    name: "Metformin 500mg",
-    generic: "Metformin HCl",
-    nextDose: "20:00",
-    icon: "💊",
-  },
-  {
-    id: "m2",
-    name: "Lisinopril 10mg",
-    generic: "Lisinopril",
-    nextDose: "08:00",
-    icon: "💊",
-  },
-  {
-    id: "m3",
-    name: "Atorvastatin 20mg",
-    generic: "Atorvastatin",
-    nextDose: "21:00",
-    icon: "💊",
-  },
-];
+interface DashboardMedicine {
+  id: string;
+  name: string;
+  generic: string;
+  nextDose: string;
+  icon: string;
+}
 
 export default function DashboardPage() {
   const greeting = getGreeting();
-  const [userName, setUserName] = useState(DEMO_USER.name);
-  const [userReminders, setUserReminders] = useState(MOCK_REMINDERS);
-  const [userMedicines, setUserMedicines] = useState(MOCK_MEDICINES);
-  const [adherenceStats, setAdherenceStats] = useState(MOCK_ADHERENCE);
+  const [userName, setUserName] = useState("");
+  const [userReminders, setUserReminders] = useState<DashboardReminder[]>([]);
+  const [userMedicines, setUserMedicines] = useState<DashboardMedicine[]>([]);
+  const [adherenceStats, setAdherenceStats] = useState({
+    percentage: 100,
+    taken: 0,
+    total: 0,
+    streak: 0,
+  });
 
   useEffect(() => {
     import("@/lib/supabase/data-service").then(
@@ -93,7 +50,7 @@ export default function DashboardPage() {
         if (prof?.full_name) setUserName(prof.full_name);
 
         const rems = await fetchUserReminders();
-        if (rems && rems.length > 0) {
+        if (rems) {
           const formatted = rems.map((r) => ({
             id: r.id,
             medicine: r.medicine,
@@ -110,12 +67,12 @@ export default function DashboardPage() {
             percentage,
             taken,
             total,
-            streak: 4,
+            streak: total > 0 ? 1 : 0,
           });
         }
 
         const meds = await fetchUserMedicines();
-        if (meds && meds.length > 0) {
+        if (meds) {
           setUserMedicines(
             meds.map((m) => ({
               id: m.id,
@@ -135,104 +92,13 @@ export default function DashboardPage() {
 
   return (
     <div className="w-full max-w-[430px] md:max-w-none mx-auto pb-6">
-      {/* ── Mobile Header (Hidden on Desktop) ──────────────────── */}
-      <div
-        className="md:hidden"
-        style={{
-          background: "var(--color-bg)",
-          padding: "16px 20px 12px",
-          borderBottom: "1px solid var(--color-border-light)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
-        }}
-      >
-        <div>
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              fontWeight: 500,
-            }}
-          >
-            {greeting},
-          </p>
-          <h1
-            style={{
-              fontSize: 20,
-              fontWeight: 800,
-              color: "var(--color-text-primary)",
-              lineHeight: 1.2,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            {userName || "there"}
-            <span className="animate-spark-pulse inline-flex items-center justify-center" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="9" stroke="var(--color-primary)" strokeWidth="2" strokeOpacity="0.3" />
-                <circle cx="12" cy="12" r="5" fill="var(--color-primary)" />
-                <circle cx="12" cy="12" r="9" stroke="var(--color-primary)" strokeWidth="1.5" strokeDasharray="4 4" />
-              </svg>
-            </span>
-          </h1>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Role chip */}
-          <span className="badge badge-primary">🏥 Patient</span>
-
-          {/* Avatar */}
-          <Link href="/profile" aria-label="Profile">
-            <div
-              className="avatar"
-              style={{
-                width: 40,
-                height: 40,
-                fontSize: 14,
-                fontWeight: 700,
-                background: "var(--color-primary)",
-                color: "white",
-              }}
-            >
-              {getInitials(userName)}
-            </div>
-          </Link>
-        </div>
-      </div>
-
-      {/* ── Desktop Page Header ─────────────────────────────── */}
-      <div className="hidden md:flex items-center justify-between px-6 py-6 border-b border-[var(--color-border-light)] bg-white mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--color-text-primary)] flex items-center gap-2.5">
-            {greeting}, {userName}
-            <span className="animate-spark-pulse inline-flex items-center justify-center" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="9" stroke="var(--color-primary)" strokeWidth="2" strokeOpacity="0.3" />
-                <circle cx="12" cy="12" r="5" fill="var(--color-primary)" />
-                <circle cx="12" cy="12" r="9" stroke="var(--color-primary)" strokeWidth="1.5" strokeDasharray="4 4" />
-              </svg>
-            </span>
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Here is your daily medication summary & schedule
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/scan" className="btn-primary">
-            <Scan size={18} />
-            Scan Medicine
-          </Link>
-          <Link href="/scan/prescription" className="btn-secondary">
-            <FileText size={18} />
-            Scan Prescription
-          </Link>
-        </div>
-      </div>
+      {/* ── Unified Responsive Greeting Header ─────────────────── */}
+      <GreetingHeader
+        greeting={greeting}
+        userName={userName}
+        subtitle="Here is your daily medication summary & schedule"
+        roleBadge="🏥 Patient"
+      />
 
       <div className="px-4 md:px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -392,16 +258,27 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {userReminders.map((reminder, i) => (
-                  <motion.div
-                    key={reminder.id}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.25 + i * 0.05 }}
-                  >
-                    <ReminderCard reminder={reminder} />
-                  </motion.div>
-                ))}
+                {userReminders.length === 0 ? (
+                  <div className="card p-6 text-center">
+                    <Clock size={28} className="mx-auto mb-2 text-[var(--color-text-muted)] opacity-60" />
+                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">No reminders scheduled for today</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1 mb-3">Add a reminder schedule to stay on track</p>
+                    <Link href="/reminders" className="btn-primary text-xs mx-auto inline-flex">
+                      Add Reminder
+                    </Link>
+                  </div>
+                ) : (
+                  userReminders.map((reminder, i) => (
+                    <motion.div
+                      key={reminder.id}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.25 + i * 0.05 }}
+                    >
+                      <ReminderCard reminder={reminder} />
+                    </motion.div>
+                  ))
+                )}
               </div>
             </motion.div>
           </div>
@@ -469,16 +346,27 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {userMedicines.map((med, i) => (
-                  <motion.div
-                    key={med.id}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.35 + i * 0.05 }}
-                  >
-                    <MedicineCard medicine={med} />
-                  </motion.div>
-                ))}
+                {userMedicines.length === 0 ? (
+                  <div className="card p-6 text-center">
+                    <Pill size={28} className="mx-auto mb-2 text-[var(--color-text-muted)] opacity-60" />
+                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">No active medicines</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1 mb-3">Scan a bottle or prescription to add medicines</p>
+                    <Link href="/scan" className="btn-secondary text-xs mx-auto inline-flex">
+                      Scan Medicine
+                    </Link>
+                  </div>
+                ) : (
+                  userMedicines.map((med, i) => (
+                    <motion.div
+                      key={med.id}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.35 + i * 0.05 }}
+                    >
+                      <MedicineCard medicine={med} />
+                    </motion.div>
+                  ))
+                )}
               </div>
             </motion.div>
           </div>
@@ -637,7 +525,7 @@ function QuickAction({
 function ReminderCard({
   reminder,
 }: {
-  reminder: (typeof MOCK_REMINDERS)[0];
+  reminder: DashboardReminder;
 }) {
   const isTaken = reminder.status === "taken";
 
@@ -706,7 +594,7 @@ function ReminderCard({
 function MedicineCard({
   medicine,
 }: {
-  medicine: (typeof MOCK_MEDICINES)[0];
+  medicine: DashboardMedicine;
 }) {
   return (
     <Link href={`/medicines/${medicine.id}`} style={{ textDecoration: "none" }}>
