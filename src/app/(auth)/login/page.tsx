@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
 
 export default function LoginPage() {
@@ -12,7 +12,24 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "oauth_failed") {
+        return "Google authentication failed. Please try again.";
+      }
+    }
+    return null;
+  });
+  const [successMessage, setSuccessMessage] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("signup") === "success") {
+        return "Account created successfully. Please login to continue.";
+      }
+    }
+    return null;
+  });
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   function validate() {
@@ -32,59 +49,64 @@ export default function LoginPage() {
     if (!validate()) return;
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: formData.email.trim(),
+        password: formData.password,
+      });
 
-      if (isMockMode) {
-        // Demo / Mock mode: simulate auth network delay
-        await new Promise((r) => setTimeout(r, 600));
-        localStorage.setItem("pharmaai_auth", "true");
-        localStorage.setItem("pharmaai_email", formData.email);
-        
-        // Retrieve existing role or navigate to role selection
-        const existingRole = localStorage.getItem("pharmaai_role");
-        if (existingRole === "patient") {
-          router.replace("/dashboard");
-        } else if (existingRole === "student" || existingRole === "pharmacy_student") {
-          router.replace("/learn");
-        } else {
-          router.replace("/role");
-        }
-      } else {
-        // Live Supabase authentication
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
+      if (authError || !data.user) {
+        setError("Invalid email or password. Please try again.");
+        return;
+      }
 
-        if (authError) {
-          setError(authError.message || "Invalid email or password. Please try again.");
-          return;
-        }
+      localStorage.setItem("pharmaai_auth", "true");
+      localStorage.setItem("pharmaai_email", data.user.email || formData.email.trim());
+      if (data.user.user_metadata?.full_name) {
+        localStorage.setItem("pharmaai_name", data.user.user_metadata.full_name);
+      }
 
-        if (data.session && data.user) {
-          // Fetch role from user_metadata or profiles table if available
-          const role = data.user.user_metadata?.role;
-          if (role === "patient") {
-            router.replace("/dashboard");
-          } else if (role === "student" || role === "pharmacy_student") {
-            router.replace("/learn");
-          } else {
-            router.replace("/role");
+      // Check whether user has selected an application mode
+      let userRole: string | undefined = data.user.user_metadata?.role;
+
+      if (!userRole) {
+        // Check profiles database table
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", data.user.id)
+            .single();
+
+          if (profile?.role) {
+            userRole = profile.role;
           }
-        } else {
-          setError("Authentication succeeded but no session was returned.");
+        } catch {
+          // Profile lookup fallback
         }
       }
+
+      if (!userRole) {
+        userRole = localStorage.getItem("pharmaai_role") || undefined;
+      }
+
+      if (userRole === "patient") {
+        localStorage.setItem("pharmaai_role", "patient");
+        router.replace("/dashboard");
+      } else if (userRole === "student" || userRole === "pharmacy_student") {
+        localStorage.setItem("pharmaai_role", "student");
+        router.replace("/learn");
+      } else {
+        // No mode selected yet — route to Select Mode
+        router.replace("/role");
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to sign in. Please try again.";
+      const msg = err instanceof Error ? err.message : "Unable to connect to authentication server. Please try again.";
       setError(msg);
     } finally {
       setLoading(false);
@@ -149,6 +171,28 @@ export default function LoginPage() {
             Sign in to continue managing your health
           </p>
         </motion.div>
+
+        {/* Success Banner (e.g. from Signup) */}
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              background: "#ecfdf5",
+              border: "1px solid #a7f3d0",
+              borderRadius: "var(--radius-md)",
+              padding: "12px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 16,
+            }}
+            role="status"
+          >
+            <CheckCircle2 size={16} style={{ color: "#059669", flexShrink: 0 }} />
+            <p style={{ fontSize: 13, color: "#065f46", fontWeight: 500 }}>{successMessage}</p>
+          </motion.div>
+        )}
 
         {/* Error Banner */}
         {error && (
@@ -385,25 +429,15 @@ export default function LoginPage() {
           }}
           onClick={async () => {
             try {
-              const isMockMode =
-                process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-                !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-                process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
-
-              if (!isMockMode) {
-                const { createClient } = await import("@/lib/supabase/client");
-                const supabase = createClient();
-                await supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: { redirectTo: `${window.location.origin}/dashboard` },
-                });
-              } else {
-                localStorage.setItem("pharmaai_auth", "true");
-                localStorage.setItem("pharmaai_email", "google.user@example.com");
-                router.replace("/dashboard");
-              }
+              const { createClient } = await import("@/lib/supabase/client");
+              const supabase = createClient();
+              await supabase.auth.signInWithOAuth({
+                provider: "google",
+                options: { redirectTo: `${window.location.origin}/auth/callback` },
+              });
             } catch (err) {
               console.error("Google Auth Error:", err);
+              setError("Failed to initialize Google sign-in. Please try again.");
             }
           }}
         >
@@ -439,19 +473,6 @@ export default function LoginPage() {
           >
             Sign Up
           </Link>
-        </p>
-
-        {/* Demo hint */}
-        <p
-          style={{
-            textAlign: "center",
-            fontSize: 11,
-            color: "var(--color-text-muted)",
-            marginTop: 12,
-            lineHeight: 1.5,
-          }}
-        >
-          Demo: use any email & password to explore the app
         </p>
       </div>
     </div>

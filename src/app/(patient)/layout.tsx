@@ -1,10 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TopNav } from "@/components/layout/TopNav";
+import { MobileNav } from "@/components/layout/MobileNav";
 import { BottomNav } from "@/components/layout/BottomNav";
-
-const DEMO_USER = { name: "Priyanshu", initials: "P" };
 
 export default function PatientLayout({
   children,
@@ -12,29 +12,30 @@ export default function PatientLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const [userName, setUserName] = useState("User");
 
-  async function handleSwitchRole() {
-    try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
-
-      localStorage.setItem("pharmaai_role", "student");
-
-      if (!isMockMode) {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase.auth.updateUser({
-          data: { role: "student" },
-        });
-      }
-    } catch {
-      // Fallback
-    } finally {
-      router.replace("/learn");
-    }
-  }
+  useEffect(() => {
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user && !localStorage.getItem("pharmaai_auth")) {
+          router.replace("/login");
+        } else if (user) {
+          const name = user.user_metadata?.full_name || localStorage.getItem("pharmaai_name");
+          if (name) {
+            setUserName(name);
+          }
+          const role = user.user_metadata?.role || localStorage.getItem("pharmaai_role");
+          if (!role) {
+            router.replace("/role");
+          }
+        } else {
+          const stored = localStorage.getItem("pharmaai_name");
+          if (stored) setUserName(stored);
+        }
+      });
+    });
+  }, [router]);
 
   return (
     <div
@@ -45,12 +46,18 @@ export default function PatientLayout({
         flexDirection: "column",
       }}
     >
+      {/* Mobile Top Nav (hidden on desktop) */}
+      <MobileNav
+        mode="patient"
+        userName={userName}
+        userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
+      />
+
       {/* Desktop Top Nav (hidden on mobile) */}
       <TopNav
         mode="patient"
-        userName={DEMO_USER.name}
-        userInitials={DEMO_USER.initials}
-        onRoleSwitch={handleSwitchRole}
+        userName={userName}
+        userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
       />
 
       {/* Page Content */}

@@ -45,6 +45,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [successScreen, setSuccessScreen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -71,51 +72,58 @@ export default function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading || successScreen) return;
     if (!validate()) return;
     setLoading(true);
     setServerError(null);
 
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
 
-      if (isMockMode) {
-        await new Promise((r) => setTimeout(r, 600));
-        localStorage.setItem("pharmaai_auth", "true");
-        localStorage.setItem("pharmaai_email", formData.email);
-        localStorage.setItem("pharmaai_name", formData.full_name);
-        router.replace("/role");
-      } else {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              full_name: formData.full_name,
-            },
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.full_name.trim(),
           },
-        });
+        },
+      });
 
-        if (signUpError) {
-          setServerError(signUpError.message || "Failed to create account. Please try again.");
-          return;
-        }
-
-        if (data.user) {
-          router.replace("/role");
+      if (signUpError || !data.user) {
+        const errorMsg = signUpError?.message || "";
+        if (
+          errorMsg.toLowerCase().includes("already registered") ||
+          errorMsg.toLowerCase().includes("already exists") ||
+          errorMsg.toLowerCase().includes("user already")
+        ) {
+          setServerError("An account with this email already exists. Please login.");
         } else {
-          setServerError("Account creation succeeded, but user data was missing.");
+          setServerError(signUpError?.message || "Failed to create account. Please try again.");
         }
+        setLoading(false);
+        return;
       }
+
+      // Clear any auto-session
+      await supabase.auth.signOut();
+      localStorage.removeItem("pharmaai_auth");
+      localStorage.removeItem("pharmaai_email");
+      localStorage.removeItem("pharmaai_name");
+      localStorage.removeItem("pharmaai_role");
+
+      // Show Success Animation Screen
+      setSuccessScreen(true);
+      setLoading(false);
+
+      // Smooth transition to /login
+      setTimeout(() => {
+        router.replace("/login?signup=success");
+      }, 1600);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to create account. Please try again.";
+      const msg = err instanceof Error ? err.message : "Failed to create account. Please check your internet connection.";
       setServerError(msg);
-    } finally {
       setLoading(false);
     }
   }
@@ -158,28 +166,101 @@ export default function SignupPage() {
           maxWidth: 400,
           width: "100%",
           margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
         }}
       >
-        {/* Heading */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ marginBottom: 24 }}
-        >
-          <h1
+        {successScreen ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="card"
             style={{
-              fontSize: 26,
-              fontWeight: 800,
-              color: "var(--color-text-primary)",
-              marginBottom: 4,
+              padding: "36px 24px",
+              textAlign: "center",
+              background: "linear-gradient(135deg, #f0fdfa 0%, #ffffff 100%)",
+              border: "1px solid #ccfbf1",
+              boxShadow: "0 10px 25px -5px rgba(13, 148, 136, 0.15)",
+              borderRadius: "var(--radius-xl)",
             }}
           >
-            Create your account
-          </h1>
-          <p style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
-            Join PharmaAI to manage your health smarter
-          </p>
-        </motion.div>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                background: "var(--color-primary-50)",
+                border: "2px solid var(--color-primary)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+              }}
+            >
+              <CheckCircle size={36} style={{ color: "var(--color-primary)" }} />
+            </motion.div>
+            <h2
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color: "var(--color-text-primary)",
+                marginBottom: 8,
+              }}
+            >
+              Account Created! 🎉
+            </h2>
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--color-text-secondary)",
+                marginBottom: 20,
+                lineHeight: 1.5,
+              }}
+            >
+              Your PharmaAI account is ready. Redirecting you to login...
+            </p>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                color: "var(--color-primary)",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              <Loader2 size={16} className="animate-spin" />
+              <span>Opening login page</span>
+            </div>
+          </motion.div>
+        ) : (
+          <>
+            {/* Heading */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ marginBottom: 24 }}
+            >
+              <h1
+                style={{
+                  fontSize: 26,
+                  fontWeight: 800,
+                  color: "var(--color-text-primary)",
+                  marginBottom: 4,
+                }}
+              >
+                Create your account
+              </h1>
+              <p style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
+                Join PharmaAI to manage your health smarter
+              </p>
+            </motion.div>
 
         {/* Error Banner */}
         {serverError && (
@@ -399,6 +480,8 @@ export default function SignupPage() {
             Sign In
           </Link>
         </p>
+          </>
+        )}
       </div>
     </div>
   );

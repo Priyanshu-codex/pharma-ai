@@ -29,11 +29,11 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // If in mock mode (no real Supabase keys configured), skip hard redirect blocking
+  // Skip auth checks if Supabase credentials are missing or unconfigured placeholder
   const isMockMode =
-    process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project") ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (isMockMode) {
     return supabaseResponse;
@@ -44,17 +44,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes — redirect to login if not authenticated
+  // Protected & Auth route definitions
   const { pathname } = request.nextUrl;
+
   const isAuthRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
     pathname.startsWith("/splash") ||
-    pathname.startsWith("/role") ||
     pathname === "/";
 
+  const isRoleRoute =
+    pathname.startsWith("/role") ||
+    pathname.startsWith("/select-mode");
+
   const isProtectedRoute =
+    isRoleRoute ||
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/profile") ||
     pathname.startsWith("/scan") ||
     pathname.startsWith("/medicines") ||
     pathname.startsWith("/alternatives") ||
@@ -70,18 +78,37 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/market") ||
     pathname.startsWith("/quizzes");
 
+  // 1. Unauthenticated user trying to access ANY protected route -> redirect to /login
   if (!user && isProtectedRoute) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && isAuthRoute && pathname !== "/" && pathname !== "/role") {
-    // Read user role from user_metadata if present
-    const role = user.user_metadata?.role || "patient";
+  // 2. Authenticated user visiting auth routes -> redirect to appropriate screen
+  if (user && isAuthRoute && pathname !== "/") {
+    const role = user.user_metadata?.role;
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = role === "pharmacy_student" || role === "student" ? "/learn" : "/dashboard";
+
+    if (role === "pharmacy_student" || role === "student") {
+      redirectUrl.pathname = "/learn";
+    } else if (role === "patient") {
+      redirectUrl.pathname = "/dashboard";
+    } else {
+      // Authenticated but no mode selected yet
+      redirectUrl.pathname = "/role";
+    }
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // 3. Authenticated user without role trying to access protected feature (not /role or /select-mode)
+  if (user && isProtectedRoute && !isRoleRoute) {
+    const role = user.user_metadata?.role;
+    if (!role) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/role";
+      return NextResponse.redirect(redirectUrl);
+    }
   }
 
   return supabaseResponse;

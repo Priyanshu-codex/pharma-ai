@@ -42,9 +42,6 @@ export default function MechanismsPage() {
           background: "var(--color-bg)",
           padding: "16px 20px 14px",
           borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)" }}>

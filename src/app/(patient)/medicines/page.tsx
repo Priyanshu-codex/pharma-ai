@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -17,47 +17,45 @@ import { formatTime } from "@/lib/utils";
 import { NoMedicinesEmpty } from "@/components/shared/EmptyState";
 import { useRouter } from "next/navigation";
 
-const MOCK_USER_MEDICINES = [
-  {
-    id: "m1",
-    name: "Metformin 500mg",
-    generic: "Metformin HCl",
-    dosage: "1 tablet",
-    frequency: "Twice daily",
-    nextDose: "20:00",
-    reminderEnabled: true,
-    icon: "💊",
-    manufacturer: "Sun Pharma",
-  },
-  {
-    id: "m2",
-    name: "Lisinopril 10mg",
-    generic: "Lisinopril",
-    dosage: "1 tablet",
-    frequency: "Once daily",
-    nextDose: "08:00",
-    reminderEnabled: true,
-    icon: "💊",
-    manufacturer: "Cipla",
-  },
-  {
-    id: "m3",
-    name: "Atorvastatin 20mg",
-    generic: "Atorvastatin",
-    dosage: "1 tablet",
-    frequency: "Once daily at bedtime",
-    nextDose: "21:00",
-    reminderEnabled: false,
-    icon: "💊",
-    manufacturer: "Ranbaxy",
-  },
-];
+interface MedicineItem {
+  id: string;
+  name: string;
+  generic: string;
+  dosage: string;
+  frequency: string;
+  nextDose: string;
+  reminderEnabled: boolean;
+  icon: string;
+  manufacturer: string;
+}
 
 export default function MedicinesPage() {
   const router = useRouter();
-  const [medicines, setMedicines] = useState(MOCK_USER_MEDICINES);
+  const [medicines, setMedicines] = useState<MedicineItem[]>([]);
   const [search, setSearch] = useState("");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  useEffect(() => {
+    import("@/lib/supabase/data-service").then(({ fetchUserMedicines }) => {
+      fetchUserMedicines().then((data) => {
+        if (data) {
+          setMedicines(
+            data.map((m) => ({
+              id: m.id,
+              name: m.name,
+              generic: m.generic_name || m.name,
+              dosage: m.strength || m.dosage_instructions || "1 dose",
+              frequency: m.frequency || "Daily",
+              nextDose: m.next_dose || "08:00",
+              reminderEnabled: m.reminder_enabled ?? true,
+              icon: m.icon || "💊",
+              manufacturer: m.manufacturer || "Generic",
+            }))
+          );
+        }
+      });
+    });
+  }, []);
 
   const filtered = medicines.filter(
     (m) =>
@@ -65,31 +63,44 @@ export default function MedicinesPage() {
       m.generic.toLowerCase().includes(search.toLowerCase())
   );
 
-  function toggleReminder(id: string) {
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  async function toggleReminder(id: string) {
+    const med = medicines.find((m) => m.id === id);
+    if (!med) return;
+    const newStatus = !med.reminderEnabled;
     setMedicines((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, reminderEnabled: !m.reminderEnabled } : m
-      )
+      prev.map((m) => (m.id === id ? { ...m, reminderEnabled: newStatus } : m))
     );
+    const { updateMedicineReminderInDB } = await import("@/lib/supabase/data-service");
+    await updateMedicineReminderInDB(id, newStatus);
   }
 
-  function removeMedicine(id: string) {
+  async function removeMedicine(id: string) {
+    const med = medicines.find((m) => m.id === id);
     setMedicines((prev) => prev.filter((m) => m.id !== id));
     setActiveMenu(null);
+    const { deleteMedicineFromDB } = await import("@/lib/supabase/data-service");
+    await deleteMedicineFromDB(id);
+    setToastMsg(`Removed ${med?.name || "medicine"}`);
+    setTimeout(() => setToastMsg(null), 3000);
   }
 
   return (
     <div className="w-full max-w-[430px] md:max-w-none mx-auto pb-6">
       {/* ── Mobile Header (Hidden on Desktop) ──────────────────── */}
+      {toastMsg && (
+        <div className="mx-4 mt-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center justify-between">
+          <span>{toastMsg}</span>
+          <button onClick={() => setToastMsg(null)} className="text-emerald-600 font-bold ml-2">✕</button>
+        </div>
+      )}
       <div
         className="md:hidden"
         style={{
           background: "var(--color-bg)",
           padding: "16px 20px 12px",
           borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
         }}
       >
         <div
@@ -233,7 +244,7 @@ function MedicineListCard({
   onToggleReminder,
   onRemove,
 }: {
-  medicine: (typeof MOCK_USER_MEDICINES)[0];
+  medicine: MedicineItem;
   isMenuOpen: boolean;
   onMenuToggle: () => void;
   onToggleReminder: () => void;

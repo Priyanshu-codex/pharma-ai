@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -13,139 +13,53 @@ import {
   Building,
   Shield,
   FileText,
+  Loader2,
 } from "lucide-react";
 import { MedDisclaimer } from "@/components/shared/MedDisclaimer";
-
-// Centralized Medicine Inventory Database
-export const MEDICINE_DATABASE: Record<
-  string,
-  {
-    id: string;
-    name: string;
-    generic_name: string;
-    brand_name: string;
-    manufacturer: string;
-    active_ingredient: string;
-    strength: string;
-    dosage_form: string;
-    dosage_instructions: string;
-    frequency: string;
-    next_dose: string;
-    reminder_enabled: boolean;
-    uses: string[];
-    side_effects: string[];
-    precautions: string[];
-    missed_dose_advice: string;
-    storage_advice: string;
-  }
-> = {
-  m1: {
-    id: "m1",
-    name: "Metformin 500mg",
-    generic_name: "Metformin Hydrochloride",
-    brand_name: "Glucophage / Glycomet",
-    manufacturer: "Sun Pharma",
-    active_ingredient: "Metformin Hydrochloride 500mg",
-    strength: "500 mg",
-    dosage_form: "Oral Tablet",
-    dosage_instructions: "Take 1 tablet twice daily with meals",
-    frequency: "Twice daily",
-    next_dose: "20:00",
-    reminder_enabled: true,
-    uses: [
-      "Type 2 Diabetes Mellitus Management",
-      "Improving Peripheral Insulin Sensitivity",
-      "Decreasing Hepatic Glucose Production",
-    ],
-    side_effects: [
-      "Nausea & Abdominal Discomfort",
-      "Mild Transient Diarrhea",
-      "Long-term Vitamin B12 Reduction",
-    ],
-    precautions: [
-      "Take with meals to minimize gastrointestinal upset",
-      "Avoid excessive alcohol consumption to prevent lactic acidosis",
-      "Periodic monitoring of renal function and B12 levels is recommended",
-    ],
-    missed_dose_advice:
-      "Take the missed dose as soon as you remember with food. If it is almost time for your next dose, skip the missed dose and resume your regular schedule. Do not double doses.",
-    storage_advice: "Store below 30°C in a dry place away from direct sunlight.",
-  },
-  m2: {
-    id: "m2",
-    name: "Lisinopril 10mg",
-    generic_name: "Lisinopril",
-    brand_name: "Zestril / Prinivil",
-    manufacturer: "Cipla Ltd",
-    active_ingredient: "Lisinopril Dihydrate 10mg",
-    strength: "10 mg",
-    dosage_form: "Oral Tablet",
-    dosage_instructions: "Take 1 tablet daily in the morning",
-    frequency: "Once daily",
-    next_dose: "08:00",
-    reminder_enabled: true,
-    uses: [
-      "Hypertension (High Blood Pressure)",
-      "Heart Failure Management",
-      "Post-Myocardial Infarction Recovery",
-    ],
-    side_effects: [
-      "Persistent Dry Cough",
-      "Dizziness upon standing",
-      "Hyperkalemia (Elevated Potassium)",
-    ],
-    precautions: [
-      "Monitor blood pressure regularly during initial treatment",
-      "Periodic blood tests for serum potassium and renal function",
-      "Do not use potassium supplements without consulting your physician",
-    ],
-    missed_dose_advice:
-      "Take it as soon as you remember. If it is within 4 hours of your next scheduled dose, skip the missed dose. Never take two doses at once.",
-    storage_advice: "Store at room temperature (15–30°C) protected from moisture.",
-  },
-  m3: {
-    id: "m3",
-    name: "Atorvastatin 20mg",
-    generic_name: "Atorvastatin Calcium",
-    brand_name: "Lipitor / Atorva",
-    manufacturer: "Ranbaxy / Sun Pharma",
-    active_ingredient: "Atorvastatin Calcium 20mg",
-    strength: "20 mg",
-    dosage_form: "Film-Coated Tablet",
-    dosage_instructions: "Take 1 tablet once daily at bedtime",
-    frequency: "Once daily at bedtime",
-    next_dose: "21:00",
-    reminder_enabled: false,
-    uses: [
-      "Hypercholesterolemia (High Cholesterol)",
-      "Reduction of Cardiovascular Risk",
-      "Prevention of Atherosclerotic Heart Disease",
-    ],
-    side_effects: [
-      "Mild Muscle Pain (Myalgia)",
-      "Elevated Liver Enzymes (rare)",
-      "Mild Digestive Upset",
-    ],
-    precautions: [
-      "Avoid consuming grapefruit or grapefruit juice in large quantities",
-      "Report unexplained muscle pain, tenderness, or weakness immediately",
-      "Periodic lipid profile and liver function tests recommended",
-    ],
-    missed_dose_advice:
-      "If you miss a dose, take it if it is more than 12 hours before your next dose. Otherwise, skip it and continue your usual bedtime routine.",
-    storage_advice: "Keep in original container at room temperature away from heat.",
-  },
-};
+import type { DBMedicine } from "@/lib/supabase/data-service";
 
 export default function MedicineDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
   const medicineId = resolvedParams.id;
 
-  const [medicine] = useState(() => MEDICINE_DATABASE[medicineId] || null);
+  const [medicine, setMedicine] = useState<DBMedicine | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
+  useEffect(() => {
+    import("@/lib/supabase/data-service").then(({ fetchMedicineById }) => {
+      fetchMedicineById(medicineId).then((med) => {
+        setMedicine(med);
+        setLoading(false);
+      });
+    });
+  }, [medicineId]);
+
+  async function handleDelete() {
+    setIsDeleting(true);
+    try {
+      const { deleteMedicineFromDB } = await import("@/lib/supabase/data-service");
+      await deleteMedicineFromDB(medicineId);
+      router.push("/medicines");
+    } catch (err) {
+      console.error("Failed to delete medicine:", err);
+      setIsDeleting(false);
+    }
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="w-full max-w-2xl mx-auto p-6 min-h-[60vh] flex flex-col items-center justify-center">
+        <Loader2 size={36} className="animate-spin text-[var(--color-primary)] mb-4" />
+        <p className="text-sm text-[var(--color-text-muted)]">Loading medicine details…</p>
+      </div>
+    );
+  }
+
+  // Not found
   if (!medicine) {
     return (
       <div className="w-full max-w-2xl mx-auto p-6 text-center min-h-[60vh] flex flex-col items-center justify-center">
@@ -164,13 +78,20 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  function handleDelete() {
-    setIsDeleting(true);
-    setTimeout(() => {
-      delete MEDICINE_DATABASE[medicineId];
-      router.push("/medicines");
-    }, 400);
-  }
+  // Derived display fields
+  const uses: string[] = medicine.dosage_instructions
+    ? [`Primary use: ${medicine.dosage_instructions}`]
+    : ["Refer to your prescription for specific therapeutic uses."];
+
+  const sideEffects: string[] = [
+    "Consult your doctor or pharmacist for a complete list of potential side effects.",
+  ];
+
+  const precautions: string[] = [
+    "Follow dosage instructions as prescribed by your doctor.",
+    "Do not stop or change your dose without medical advice.",
+    "Keep out of reach of children.",
+  ];
 
   return (
     <div className="w-full max-w-3xl mx-auto pb-12 px-4 md:px-6 pt-4">
@@ -204,31 +125,36 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="w-16 h-16 rounded-2xl bg-[var(--color-primary-50)] text-[var(--color-primary)] flex items-center justify-center flex-shrink-0 text-3xl font-bold">
-              💊
+              {medicine.icon || "💊"}
             </div>
             <div>
               <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-1">{medicine.name}</h1>
               <p className="text-sm text-[var(--color-text-secondary)] font-medium">
-                {medicine.generic_name} · <span className="text-[var(--color-text-muted)]">{medicine.brand_name}</span>
+                {medicine.generic_name || medicine.name}
+                {medicine.brand_name && medicine.brand_name !== medicine.name && (
+                  <> · <span className="text-[var(--color-text-muted)]">{medicine.brand_name}</span></>
+                )}
               </p>
               <div className="flex items-center gap-2 mt-3 flex-wrap">
-                <span className="badge badge-muted">{medicine.dosage_form}</span>
-                <span className="badge badge-muted">{medicine.strength}</span>
-                <span className="badge badge-primary">{medicine.frequency}</span>
+                {medicine.dosage_form && <span className="badge badge-muted">{medicine.dosage_form}</span>}
+                {medicine.strength && <span className="badge badge-muted">{medicine.strength}</span>}
+                {medicine.frequency && <span className="badge badge-primary">{medicine.frequency}</span>}
               </div>
             </div>
           </div>
 
-          <div className="bg-[var(--color-bg)] p-4 rounded-xl border border-[var(--color-border-light)] flex flex-col gap-1 min-w-[180px]">
-            <span className="text-xs text-[var(--color-text-muted)] font-medium">Next Scheduled Dose</span>
-            <div className="flex items-center gap-2 text-[var(--color-primary)] font-bold text-lg">
-              <Clock size={18} />
-              {medicine.next_dose}
+          {medicine.next_dose && (
+            <div className="bg-[var(--color-bg)] p-4 rounded-xl border border-[var(--color-border-light)] flex flex-col gap-1 min-w-[180px]">
+              <span className="text-xs text-[var(--color-text-muted)] font-medium">Next Scheduled Dose</span>
+              <div className="flex items-center gap-2 text-[var(--color-primary)] font-bold text-lg">
+                <Clock size={18} />
+                {medicine.next_dose}
+              </div>
+              <span className="text-[11px] text-[var(--color-text-secondary)]">
+                {medicine.reminder_enabled ? "🔔 Reminders Active" : "🔕 Reminders Muted"}
+              </span>
             </div>
-            <span className="text-[11px] text-[var(--color-text-secondary)]">
-              {medicine.reminder_enabled ? "🔔 Reminders Active" : "🔕 Reminders Muted"}
-            </span>
-          </div>
+          )}
         </div>
       </motion.div>
 
@@ -241,21 +167,27 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
             Dosage & Schedule
           </h3>
           <div className="space-y-3 text-sm">
-            <div>
-              <span className="text-xs text-[var(--color-text-muted)] block mb-1">Instructions</span>
-              <p className="font-semibold text-[var(--color-text-primary)]">{medicine.dosage_instructions}</p>
-            </div>
-            <div>
-              <span className="text-xs text-[var(--color-text-muted)] block mb-1">Manufacturer</span>
-              <p className="font-semibold text-[var(--color-text-primary)] flex items-center gap-1.5">
-                <Building size={14} className="text-[var(--color-text-muted)]" />
-                {medicine.manufacturer}
-              </p>
-            </div>
-            <div>
-              <span className="text-xs text-[var(--color-text-muted)] block mb-1">Storage Recommendation</span>
-              <p className="text-[var(--color-text-secondary)] text-xs">{medicine.storage_advice}</p>
-            </div>
+            {medicine.dosage_instructions && (
+              <div>
+                <span className="text-xs text-[var(--color-text-muted)] block mb-1">Instructions</span>
+                <p className="font-semibold text-[var(--color-text-primary)]">{medicine.dosage_instructions}</p>
+              </div>
+            )}
+            {medicine.active_ingredient && (
+              <div>
+                <span className="text-xs text-[var(--color-text-muted)] block mb-1">Active Ingredient</span>
+                <p className="font-semibold text-[var(--color-text-primary)]">{medicine.active_ingredient}</p>
+              </div>
+            )}
+            {medicine.manufacturer && (
+              <div>
+                <span className="text-xs text-[var(--color-text-muted)] block mb-1">Manufacturer</span>
+                <p className="font-semibold text-[var(--color-text-primary)] flex items-center gap-1.5">
+                  <Building size={14} className="text-[var(--color-text-muted)]" />
+                  {medicine.manufacturer}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -266,7 +198,7 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
             Therapeutic Uses
           </h3>
           <ul className="space-y-2">
-            {medicine.uses.map((use, i) => (
+            {uses.map((use, i) => (
               <li key={i} className="text-sm text-[var(--color-text-primary)] flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
                 <span>{use}</span>
@@ -285,13 +217,16 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
             Common Side Effects
           </h3>
           <ul className="space-y-2">
-            {medicine.side_effects.map((se, i) => (
+            {sideEffects.map((se, i) => (
               <li key={i} className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 flex-shrink-0" />
                 <span>{se}</span>
               </li>
             ))}
           </ul>
+          <p className="text-xs text-[var(--color-text-muted)] mt-3">
+            Ask your pharmacist or doctor for a full list of side effects specific to this medicine.
+          </p>
         </div>
 
         {/* Precautions */}
@@ -301,7 +236,7 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
             Precautions & Warnings
           </h3>
           <ul className="space-y-2">
-            {medicine.precautions.map((p, i) => (
+            {precautions.map((p, i) => (
               <li key={i} className="text-xs text-[var(--color-text-secondary)] leading-relaxed flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
                 <span>{p}</span>
@@ -311,11 +246,19 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      {/* Missed Dose Advice */}
-      <div className="card p-5 mb-6 bg-blue-50/50 border-blue-100">
-        <h4 className="text-sm font-bold text-blue-900 mb-2">💡 What to do if you miss a dose</h4>
-        <p className="text-xs text-blue-800 leading-relaxed">{medicine.missed_dose_advice}</p>
-      </div>
+      {/* Added date */}
+      {medicine.created_at && (
+        <div className="card p-5 mb-6 bg-blue-50/50 border-blue-100">
+          <h4 className="text-sm font-bold text-blue-900 mb-1">💡 Tracking since</h4>
+          <p className="text-xs text-blue-800">
+            Added on {new Date(medicine.created_at).toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+      )}
 
       <MedDisclaimer />
 
@@ -343,7 +286,14 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
                 className="btn-primary flex-1 bg-red-600 hover:bg-red-700 border-none text-white"
                 disabled={isDeleting}
               >
-                {isDeleting ? "Removing..." : "Remove"}
+                {isDeleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Removing…
+                  </>
+                ) : (
+                  "Remove"
+                )}
               </button>
             </div>
           </div>

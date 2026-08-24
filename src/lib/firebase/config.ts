@@ -41,10 +41,35 @@ export async function requestFCMToken(): Promise<string | null> {
       return null;
     }
 
-    const token = await getToken(messaging, { vapidKey });
+    // Register the SW with Firebase config as query params so the SW can initialize
+    // without ES module imports (which are unsupported in SW context).
+    const swParams = new URLSearchParams({
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
+    });
+
+    const swUrl = `/firebase-messaging-sw.js?${swParams.toString()}`;
+    const serviceWorkerRegistration = await navigator.serviceWorker.register(swUrl, {
+      scope: "/",
+    });
+    await navigator.serviceWorker.ready;
+
+    const token = await getToken(messaging, {
+      vapidKey,
+      serviceWorkerRegistration,
+    });
+
     if (token) {
       localStorage.setItem("pharmaai_fcm_token", token);
       console.log("FCM: Token generated successfully.", token.substring(0, 10) + "...");
+      // Save token to backend database asynchronously
+      import("@/lib/supabase/data-service").then(({ saveFCMTokenToDB }) => {
+        saveFCMTokenToDB(token);
+      });
       return token;
     }
     return null;

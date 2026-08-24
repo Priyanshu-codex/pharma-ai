@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -72,50 +73,52 @@ const RECENT_TOPICS = [
 ];
 
 export default function LearnPage() {
+  const [stats, setStats] = useState({ quizzes: 0, cases: 0, avgScore: 0 });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const history: Array<{ score: number; total: number; percentage: number }> = JSON.parse(
+          localStorage.getItem("pharmaai_quiz_history") || "[]"
+        );
+        if (history.length > 0) {
+          const totalPct = history.reduce((acc, curr) => acc + (curr.percentage || 0), 0);
+          const computedStats = {
+            quizzes: history.length,
+            cases: Math.min(history.length, 3),
+            avgScore: Math.round(totalPct / history.length),
+          };
+          queueMicrotask(() => setStats(computedStats));
+        }
+      } catch {}
+    }
+  }, []);
+
   return (
     <div className="w-full max-w-[430px] md:max-w-none mx-auto pb-6">
-      {/* ── Mobile Header (Hidden on Desktop) ──────────────────── */}
-      <div
-        className="md:hidden"
-        style={{
-          background: "var(--color-bg)",
-          padding: "16px 20px 14px",
-          borderBottom: "1px solid var(--color-border-light)",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      {/* ── Unified Responsive Page Header ───────────────────── */}
+      <header className="w-full bg-white border-b border-[var(--color-border-light)] relative z-10 mb-4 md:mb-6">
+        <div className="px-4 py-3 md:px-6 md:py-6 flex items-center justify-between">
           <div>
-            <p style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500 }}>
-              Study Dashboard
-            </p>
-            <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)" }}>
-              Good morning, Student
+            <h1 className="text-lg md:text-2xl font-extrabold text-[var(--color-text-primary)] flex items-center gap-2">
+              <span>Pharmacy Learning Hub</span>
+              <GraduationCap className="text-teal-600 inline-block" size={24} />
             </h1>
+            <p className="text-xs md:text-sm text-[var(--color-text-muted)] mt-0.5 md:mt-1">
+              Master drug mechanisms, clinical cases, interactions, and AI-powered quizzes
+            </p>
           </div>
-          <span className="badge" style={{ background: "#f5f3ff", color: "#7c3aed", border: "1px solid #ddd6fe" }}>
-            Student
-          </span>
+          <div className="flex items-center gap-2.5 md:gap-3">
+            <span className="badge md:hidden" style={{ background: "#f5f3ff", color: "#7c3aed", border: "1px solid #ddd6fe", fontSize: 11 }}>
+              🎓 Student
+            </span>
+            <Link href="/assistant" className="btn-primary text-xs md:text-sm py-2 px-3 md:px-4" style={{ background: "#7c3aed" }}>
+              <MessageCircle size={16} />
+              AI Assistant
+            </Link>
+          </div>
         </div>
-      </div>
-
-      {/* ── Desktop Page Header ─────────────────────────────── */}
-      <div className="hidden md:flex items-center justify-between px-6 py-6 border-b border-[var(--color-border-light)] bg-white mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--color-text-primary)]">
-            Pharmacy Student Learning Hub
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Master drug mechanisms, clinical cases, interactions, and AI-powered quizzes
-          </p>
-        </div>
-        <Link href="/assistant" className="btn-primary" style={{ background: "#7c3aed" }}>
-          <MessageCircle size={18} />
-          AI Study Assistant
-        </Link>
-      </div>
+      </header>
 
       <div className="px-4 md:px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -144,19 +147,19 @@ export default function LearnPage() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)", marginBottom: 4 }}>
-                    Keep Learning!
+                    {stats.quizzes > 0 ? "Keep Learning!" : "Start Your Learning Journey!"}
                   </p>
                   <div style={{ display: "flex", gap: 16 }}>
                     <div>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: "#7c3aed" }}>12</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: "#7c3aed" }}>{stats.quizzes}</span>
                       <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: 3 }}>quizzes completed</span>
                     </div>
                     <div>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: "var(--color-primary)" }}>5</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: "var(--color-primary)" }}>{stats.cases}</span>
                       <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: 3 }}>cases solved</span>
                     </div>
                     <div>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: "var(--color-success)" }}>82%</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: "var(--color-success)" }}>{stats.avgScore > 0 ? `${stats.avgScore}%` : "—"}</span>
                       <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: 3 }}>avg score</span>
                     </div>
                   </div>
