@@ -61,20 +61,7 @@ const INITIAL_REMINDERS: Reminder[] = [
 ];
 
 export default function RemindersPage() {
-  const [reminders, setReminders] = useState<Reminder[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("pharmaai_reminders");
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch (e) {
-          console.error("Failed to parse stored reminders:", e);
-        }
-      }
-    }
-    return INITIAL_REMINDERS;
-  });
-
+  const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSnoozeModal, setShowSnoozeModal] = useState<string | null>(null);
@@ -85,11 +72,25 @@ export default function RemindersPage() {
   const [newDosage, setNewDosage] = useState("");
   const [newTime, setNewTime] = useState("09:00");
 
+  // Fetch reminders on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("pharmaai_reminders", JSON.stringify(reminders));
-    }
-  }, [reminders]);
+    import("@/lib/supabase/data-service").then(({ fetchUserReminders }) => {
+      fetchUserReminders().then((data) => {
+        if (data && data.length > 0) {
+          setReminders(
+            data.map((r) => ({
+              id: r.id,
+              medicine: r.medicine,
+              dosage: r.dosage,
+              time: r.time,
+              status: r.status,
+              enabled: r.enabled,
+            }))
+          );
+        }
+      });
+    });
+  }, []);
 
   // Request Notification permission & setup interval check for due reminders
   useEffect(() => {
@@ -113,7 +114,7 @@ export default function RemindersPage() {
           if (Notification.permission === "granted") {
             new Notification(`💊 PharmaAI Reminder: ${r.medicine}`, {
               body: `Time for your dose: ${r.dosage}. Tap to open schedule.`,
-              icon: "/icons/icon-192x192.png",
+              icon: "/icon.svg",
             });
           }
         }
@@ -143,37 +144,43 @@ export default function RemindersPage() {
 
   async function updateStatus(id: string, status: ReminderStatus) {
     setLoadingId(id);
-    await new Promise((r) => setTimeout(r, 300));
     setReminders((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status } : r))
     );
+    const { updateReminderStatusInDB } = await import("@/lib/supabase/data-service");
+    await updateReminderStatusInDB(id, status);
     setLoadingId(null);
   }
 
-  function handleAddReminder(e: React.FormEvent) {
+  async function handleAddReminder(e: React.FormEvent) {
     e.preventDefault();
     if (!newMedName.trim() || !newDosage.trim()) return;
 
-    const newRem: Reminder = {
-      id: `r_${Date.now()}`,
+    const payload = {
       medicine: newMedName.trim(),
       dosage: newDosage.trim(),
       time: newTime,
-      status: "pending",
+      status: "pending" as const,
       enabled: true,
     };
 
-    setReminders((prev) => [...prev, newRem]);
+    const { saveReminderToDB } = await import("@/lib/supabase/data-service");
+    const created = await saveReminderToDB(payload);
+
+    setReminders((prev) => [...prev, created]);
     setNewMedName("");
     setNewDosage("");
     setNewTime("09:00");
     setShowAddModal(false);
   }
 
-  function handleConfirmDelete() {
+  async function handleConfirmDelete() {
     if (!deleteConfirmId) return;
-    setReminders((prev) => prev.filter((r) => r.id !== deleteConfirmId));
+    const targetId = deleteConfirmId;
+    setReminders((prev) => prev.filter((r) => r.id !== targetId));
     setDeleteConfirmId(null);
+    const { deleteReminderFromDB } = await import("@/lib/supabase/data-service");
+    await deleteReminderFromDB(targetId);
   }
 
   const taken = reminders.filter((r) => r.status === "taken").length;

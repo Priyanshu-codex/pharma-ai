@@ -22,23 +22,14 @@ export default function ForgotPasswordPage() {
     setError(null);
 
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
-
-      if (!isMockMode) {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (resetError) {
-          setError(resetError.message);
-          return;
-        }
-      } else {
-        await new Promise((r) => setTimeout(r, 600));
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (resetError) {
+        setError(resetError.message);
+        return;
       }
 
       setSubmitted(true);

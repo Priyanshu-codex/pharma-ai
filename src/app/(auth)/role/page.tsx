@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -55,27 +55,51 @@ export default function RolePage() {
   const router = useRouter();
   const [selected, setSelected] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  // Guard: Only authenticated users can access mode selection
+  useEffect(() => {
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user && !localStorage.getItem("pharmaai_auth")) {
+          router.replace("/login");
+        } else {
+          setAuthChecking(false);
+        }
+      });
+    });
+  }, [router]);
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Loader2 size={32} className="animate-spin text-[var(--color-primary)]" />
+      </div>
+    );
+  }
 
   async function handleContinue() {
     if (!selected) return;
     setLoading(true);
 
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
-
       localStorage.setItem("pharmaai_role", selected);
 
-      if (!isMockMode) {
+      const hasSupabase =
+        Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+        !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project") &&
+        Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+      if (hasSupabase) {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         await supabase.auth.updateUser({
           data: { role: selected },
         });
-      } else {
-        await new Promise((r) => setTimeout(r, 400));
+
+        const { updateUserProfile } = await import("@/lib/supabase/data-service");
+        await updateUserProfile({ role: selected });
       }
 
       if (selected === "patient") {
@@ -84,7 +108,6 @@ export default function RolePage() {
         router.replace("/learn");
       }
     } catch {
-      // Fallback redirect even if metadata update fails
       if (selected === "patient") {
         router.replace("/dashboard");
       } else {

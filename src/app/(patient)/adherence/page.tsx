@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart,
@@ -69,14 +69,75 @@ const MONTHLY_DATA = (() => {
 
 export default function AdherencePage() {
   const [period, setPeriod] = useState<Period>("weekly");
+  const [realAdherenceData, setRealAdherenceData] = useState<{
+    daily: typeof DAILY_DATA;
+    weekly: typeof WEEKLY_DATA;
+    monthly: typeof MONTHLY_DATA;
+  }>({
+    daily: DAILY_DATA,
+    weekly: WEEKLY_DATA,
+    monthly: MONTHLY_DATA,
+  });
+
+  useEffect(() => {
+    import("@/lib/supabase/data-service").then(({ fetchUserReminders }) => {
+      fetchUserReminders().then((rems) => {
+        if (!rems || rems.length === 0) return;
+
+        const taken = rems.filter((r) => r.status === "taken").length;
+        const skipped = rems.filter((r) => r.status === "skipped").length;
+        const total = rems.length;
+        const adherencePct = total > 0 ? Math.round((taken / total) * 100) : 100;
+
+        // Build real daily data: today's counts, keep older days as estimated baseline
+        const updatedDaily = getLastNDays(7).map((date, idx) => {
+          const isToday = idx === 6; // getLastNDays returns oldest first
+          if (isToday) {
+            return {
+              date,
+              label: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              shortLabel: "Today",
+              taken,
+              skipped,
+              total: Math.max(total, 1),
+              adherence: adherencePct,
+            };
+          }
+          // Keep the seeded mock for past days (we don't have historical logs yet)
+          return DAILY_DATA[idx];
+        });
+
+        // Update current week (Week 4) with real data
+        const updatedWeekly = [...WEEKLY_DATA];
+        updatedWeekly[updatedWeekly.length - 1] = {
+          label: "This Week",
+          taken: Math.max(taken, 0),
+          skipped,
+          total: Math.max(total, 1),
+          adherence: adherencePct,
+        };
+
+        setRealAdherenceData((prev) => ({
+          ...prev,
+          daily: updatedDaily,
+          weekly: updatedWeekly,
+        }));
+      });
+    });
+  }, []);
+
 
   const data =
-    period === "daily" ? DAILY_DATA : period === "weekly" ? WEEKLY_DATA : MONTHLY_DATA;
+    period === "daily"
+      ? realAdherenceData.daily
+      : period === "weekly"
+      ? realAdherenceData.weekly
+      : realAdherenceData.monthly;
 
   const totalTaken = data.reduce((sum, d) => sum + d.taken, 0);
   const totalSkipped = data.reduce((sum, d) => sum + d.skipped, 0);
   const totalDoses = data.reduce((sum, d) => sum + d.total, 0);
-  const avgAdherence = Math.round((totalTaken / totalDoses) * 100);
+  const avgAdherence = totalDoses > 0 ? Math.round((totalTaken / totalDoses) * 100) : 100;
 
   return (
     <div style={{ maxWidth: 430, margin: "0 auto" }}>

@@ -76,6 +76,14 @@ export function AIAssistant({ mode }: AIAssistantProps) {
         content: m.content,
       }));
 
+      // Fetch active user medicines & reminders for context
+      const { fetchUserMedicines, fetchUserReminders } = await import("@/lib/supabase/data-service");
+      const [meds, rems] = await Promise.all([fetchUserMedicines(), fetchUserReminders()]);
+      const userContext = {
+        medicines: meds.map((m) => `${m.name} (${m.dosage_instructions || m.strength || "regular dose"})`),
+        reminders: rems.map((r) => `${r.medicine} at ${r.time} [Status: ${r.status}]`),
+      };
+
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,6 +91,7 @@ export function AIAssistant({ mode }: AIAssistantProps) {
           message: content.trim(),
           history: historyPayload,
           role: mode,
+          userContext,
         }),
       });
 

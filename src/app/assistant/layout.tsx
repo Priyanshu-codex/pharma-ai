@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { TopNav } from "@/components/layout/TopNav";
 import type { UserRole } from "@/lib/types";
-
-const DEMO_USER = { name: "Priyanshu", initials: "P" };
 
 export default function AssistantLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const [userName, setUserName] = useState("Priyanshu");
   const [mode] = useState<UserRole>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("pharmaai_role") as UserRole | null;
@@ -22,6 +23,19 @@ export default function AssistantLayout({
     return "patient";
   });
 
+  useEffect(() => {
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user && !localStorage.getItem("pharmaai_auth")) {
+          router.replace("/login");
+        } else if (user?.user_metadata?.full_name) {
+          setUserName(user.user_metadata.full_name);
+        }
+      });
+    });
+  }, [router]);
+
   return (
     <div
       style={{
@@ -31,7 +45,7 @@ export default function AssistantLayout({
         flexDirection: "column",
       }}
     >
-      <TopNav mode={mode} userName={DEMO_USER.name} userInitials={DEMO_USER.initials} />
+      <TopNav mode={mode} userName={userName} userInitials={userName ? userName.charAt(0).toUpperCase() : "P"} />
       <main style={{ flex: 1 }}>{children}</main>
       <div className="md:hidden">
         <BottomNav mode={mode} />

@@ -30,21 +30,12 @@ export default function ResetPasswordPage() {
     setError(null);
 
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
-
-      if (!isMockMode) {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        const { error: updateError } = await supabase.auth.updateUser({ password });
-        if (updateError) {
-          setError(updateError.message);
-          return;
-        }
-      } else {
-        await new Promise((r) => setTimeout(r, 600));
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) {
+        setError(updateError.message);
+        return;
       }
 
       setSubmitted(true);

@@ -76,44 +76,34 @@ export default function SignupPage() {
     setServerError(null);
 
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
 
-      if (isMockMode) {
-        await new Promise((r) => setTimeout(r, 600));
-        localStorage.setItem("pharmaai_auth", "true");
-        localStorage.setItem("pharmaai_email", formData.email);
-        localStorage.setItem("pharmaai_name", formData.full_name);
-        router.replace("/role");
-      } else {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              full_name: formData.full_name,
-            },
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.full_name.trim(),
           },
-        });
+        },
+      });
 
-        if (signUpError) {
-          setServerError(signUpError.message || "Failed to create account. Please try again.");
-          return;
-        }
-
-        if (data.user) {
-          router.replace("/role");
-        } else {
-          setServerError("Account creation succeeded, but user data was missing.");
-        }
+      if (signUpError || !data.user) {
+        setServerError(signUpError?.message || "Failed to create account. Please try again.");
+        return;
       }
+
+      // Ensure user is not auto-logged in; redirect to login
+      await supabase.auth.signOut();
+      localStorage.removeItem("pharmaai_auth");
+      localStorage.removeItem("pharmaai_email");
+      localStorage.removeItem("pharmaai_name");
+      localStorage.removeItem("pharmaai_role");
+
+      router.replace("/login?signup=success");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to create account. Please try again.";
+      const msg = err instanceof Error ? err.message : "Failed to create account. Please check your internet connection.";
       setServerError(msg);
     } finally {
       setLoading(false);

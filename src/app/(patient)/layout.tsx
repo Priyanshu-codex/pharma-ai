@@ -1,10 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TopNav } from "@/components/layout/TopNav";
 import { BottomNav } from "@/components/layout/BottomNav";
-
-const DEMO_USER = { name: "Priyanshu", initials: "P" };
 
 export default function PatientLayout({
   children,
@@ -12,23 +11,40 @@ export default function PatientLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const [userName, setUserName] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("pharmaai_name") || "User";
+    }
+    return "User";
+  });
+
+  useEffect(() => {
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user && !localStorage.getItem("pharmaai_auth")) {
+          router.replace("/login");
+        } else if (user) {
+          if (user.user_metadata?.full_name) {
+            setUserName(user.user_metadata.full_name);
+          }
+          const role = user.user_metadata?.role || localStorage.getItem("pharmaai_role");
+          if (!role) {
+            router.replace("/role");
+          }
+        }
+      });
+    });
+  }, [router]);
 
   async function handleSwitchRole() {
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
-
       localStorage.setItem("pharmaai_role", "student");
-
-      if (!isMockMode) {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase.auth.updateUser({
-          data: { role: "student" },
-        });
-      }
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      await supabase.auth.updateUser({
+        data: { role: "student" },
+      });
     } catch {
       // Fallback
     } finally {
@@ -48,8 +64,8 @@ export default function PatientLayout({
       {/* Desktop Top Nav (hidden on mobile) */}
       <TopNav
         mode="patient"
-        userName={DEMO_USER.name}
-        userInitials={DEMO_USER.initials}
+        userName={userName}
+        userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
         onRoleSwitch={handleSwitchRole}
       />
 

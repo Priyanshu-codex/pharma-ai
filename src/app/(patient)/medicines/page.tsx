@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -59,6 +59,28 @@ export default function MedicinesPage() {
   const [search, setSearch] = useState("");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
+  useEffect(() => {
+    import("@/lib/supabase/data-service").then(({ fetchUserMedicines }) => {
+      fetchUserMedicines().then((data) => {
+        if (data && data.length > 0) {
+          setMedicines(
+            data.map((m) => ({
+              id: m.id,
+              name: m.name,
+              generic: m.generic_name || m.name,
+              dosage: m.strength || m.dosage_instructions || "1 dose",
+              frequency: m.frequency || "Daily",
+              nextDose: m.next_dose || "08:00",
+              reminderEnabled: m.reminder_enabled ?? true,
+              icon: m.icon || "💊",
+              manufacturer: m.manufacturer || "Generic",
+            }))
+          );
+        }
+      });
+    });
+  }, []);
+
   const filtered = medicines.filter(
     (m) =>
       m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -73,9 +95,11 @@ export default function MedicinesPage() {
     );
   }
 
-  function removeMedicine(id: string) {
+  async function removeMedicine(id: string) {
     setMedicines((prev) => prev.filter((m) => m.id !== id));
     setActiveMenu(null);
+    const { deleteMedicineFromDB } = await import("@/lib/supabase/data-service");
+    await deleteMedicineFromDB(id);
   }
 
   return (

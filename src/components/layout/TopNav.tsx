@@ -158,7 +158,15 @@ export function TopNav({ mode, userName, userInitials, onRoleSwitch }: TopNavPro
                   <button
                     onClick={async () => {
                       setProfileOpen(false);
-                      // Sign out handled by auth context
+                      try {
+                        const { createClient } = await import("@/lib/supabase/client");
+                        const supabase = createClient();
+                        await supabase.auth.signOut();
+                      } catch {}
+                      localStorage.removeItem("pharmaai_auth");
+                      localStorage.removeItem("pharmaai_email");
+                      localStorage.removeItem("pharmaai_name");
+                      localStorage.removeItem("pharmaai_role");
                       router.push("/login");
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -12,8 +13,8 @@ import {
 } from "lucide-react";
 import { getGreeting, formatTime, adherenceLabel, getInitials } from "@/lib/utils";
 
-// ── Mock Data ──────────────────────────────────────────────
-const DEMO_USER = { name: "Priyanshu", role: "Patient" };
+// ── Default Fallback Data ──────────────────────────────────
+const DEMO_USER = { name: "", role: "Patient" };
 
 const MOCK_ADHERENCE = {
   percentage: 78,
@@ -22,26 +23,34 @@ const MOCK_ADHERENCE = {
   streak: 4,
 };
 
-const MOCK_REMINDERS = [
+interface DashboardReminder {
+  id: string;
+  medicine: string;
+  time: string;
+  status: "taken" | "pending" | "skipped" | "snoozed";
+  dosage: string;
+}
+
+const MOCK_REMINDERS: DashboardReminder[] = [
   {
     id: "r1",
     medicine: "Metformin 500mg",
     time: "08:00",
-    status: "taken" as const,
+    status: "taken",
     dosage: "1 tablet",
   },
   {
     id: "r2",
     medicine: "Lisinopril 10mg",
     time: "08:00",
-    status: "pending" as const,
+    status: "pending",
     dosage: "1 tablet",
   },
   {
     id: "r3",
     medicine: "Atorvastatin 20mg",
     time: "21:00",
-    status: "pending" as const,
+    status: "pending",
     dosage: "1 tablet",
   },
 ];
@@ -72,8 +81,57 @@ const MOCK_MEDICINES = [
 
 export default function DashboardPage() {
   const greeting = getGreeting();
-  const takenCount = MOCK_REMINDERS.filter((r) => r.status === "taken").length;
-  const pendingCount = MOCK_REMINDERS.filter((r) => r.status === "pending").length;
+  const [userName, setUserName] = useState(DEMO_USER.name);
+  const [userReminders, setUserReminders] = useState(MOCK_REMINDERS);
+  const [userMedicines, setUserMedicines] = useState(MOCK_MEDICINES);
+  const [adherenceStats, setAdherenceStats] = useState(MOCK_ADHERENCE);
+
+  useEffect(() => {
+    import("@/lib/supabase/data-service").then(
+      async ({ fetchUserProfile, fetchUserReminders, fetchUserMedicines }) => {
+        const prof = await fetchUserProfile();
+        if (prof?.full_name) setUserName(prof.full_name);
+
+        const rems = await fetchUserReminders();
+        if (rems && rems.length > 0) {
+          const formatted = rems.map((r) => ({
+            id: r.id,
+            medicine: r.medicine,
+            time: r.time,
+            status: r.status as "taken" | "pending" | "skipped" | "snoozed",
+            dosage: r.dosage,
+          }));
+          setUserReminders(formatted);
+
+          const taken = formatted.filter((r) => r.status === "taken").length;
+          const total = formatted.length;
+          const percentage = total > 0 ? Math.round((taken / total) * 100) : 100;
+          setAdherenceStats({
+            percentage,
+            taken,
+            total,
+            streak: 4,
+          });
+        }
+
+        const meds = await fetchUserMedicines();
+        if (meds && meds.length > 0) {
+          setUserMedicines(
+            meds.map((m) => ({
+              id: m.id,
+              name: m.name,
+              generic: m.generic_name || m.name,
+              nextDose: m.next_dose || "08:00",
+              icon: m.icon || "💊",
+            }))
+          );
+        }
+      }
+    );
+  }, []);
+
+  const takenCount = userReminders.filter((r) => r.status === "taken").length;
+  const pendingCount = userReminders.filter((r) => r.status === "pending").length;
 
   return (
     <div className="w-full max-w-[430px] md:max-w-none mx-auto pb-6">
@@ -113,7 +171,7 @@ export default function DashboardPage() {
               gap: 8,
             }}
           >
-            {DEMO_USER.name}
+            {userName || "there"}
             <span className="animate-spark-pulse inline-flex items-center justify-center" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="12" cy="12" r="9" stroke="var(--color-primary)" strokeWidth="2" strokeOpacity="0.3" />
@@ -141,7 +199,7 @@ export default function DashboardPage() {
                 color: "white",
               }}
             >
-              {getInitials(DEMO_USER.name)}
+              {getInitials(userName)}
             </div>
           </Link>
         </div>
@@ -151,7 +209,7 @@ export default function DashboardPage() {
       <div className="hidden md:flex items-center justify-between px-6 py-6 border-b border-[var(--color-border-light)] bg-white mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--color-text-primary)] flex items-center gap-2.5">
-            {greeting}, {DEMO_USER.name}
+            {greeting}, {userName}
             <span className="animate-spark-pulse inline-flex items-center justify-center" aria-hidden="true">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="12" cy="12" r="9" stroke="var(--color-primary)" strokeWidth="2" strokeOpacity="0.3" />
@@ -217,7 +275,7 @@ export default function DashboardPage() {
                         color: "var(--color-primary)",
                       }}
                     >
-                      {MOCK_ADHERENCE.percentage}%
+                      {adherenceStats.percentage}%
                     </span>
                     <span
                       style={{
@@ -226,7 +284,7 @@ export default function DashboardPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {adherenceLabel(MOCK_ADHERENCE.percentage)}
+                      {adherenceLabel(adherenceStats.percentage)}
                     </span>
                   </div>
                   <p
@@ -236,13 +294,13 @@ export default function DashboardPage() {
                       marginTop: 4,
                     }}
                   >
-                    {MOCK_ADHERENCE.taken} of {MOCK_ADHERENCE.total} doses taken ·{" "}
-                    🔥 {MOCK_ADHERENCE.streak} day streak
+                    {adherenceStats.taken} of {adherenceStats.total} doses taken ·{" "}
+                    🔥 {adherenceStats.streak} day streak
                   </p>
                 </div>
 
                 {/* Circle Progress */}
-                <CircleProgress value={MOCK_ADHERENCE.percentage} />
+                <CircleProgress value={adherenceStats.percentage} />
               </div>
 
               {/* Progress Bar */}
@@ -257,7 +315,7 @@ export default function DashboardPage() {
               >
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${MOCK_ADHERENCE.percentage}%` }}
+                  animate={{ width: `${adherenceStats.percentage}%` }}
                   transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
                   style={{
                     height: "100%",
@@ -294,7 +352,7 @@ export default function DashboardPage() {
               />
               <SummaryChip
                 icon={<Pill size={16} />}
-                value={String(MOCK_MEDICINES.length)}
+                value={String(userMedicines.length)}
                 label="Medicines"
                 color="var(--color-primary)"
                 bg="var(--color-primary-50)"
@@ -334,7 +392,7 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {MOCK_REMINDERS.map((reminder, i) => (
+                {userReminders.map((reminder, i) => (
                   <motion.div
                     key={reminder.id}
                     initial={{ opacity: 0, x: -12 }}
@@ -411,7 +469,7 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {MOCK_MEDICINES.map((med, i) => (
+                {userMedicines.map((med, i) => (
                   <motion.div
                     key={med.id}
                     initial={{ opacity: 0, x: -12 }}

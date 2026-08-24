@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -33,20 +33,46 @@ export default function ProfilePage() {
       const storedName = localStorage.getItem("pharmaai_name");
       if (storedName) return storedName;
     }
-    return "Priyanshu";
+    return "";
   });
-  const [email] = useState(() => {
+  const [email, setEmail] = useState(() => {
     if (typeof window !== "undefined") {
       const storedEmail = localStorage.getItem("pharmaai_email");
       if (storedEmail) return storedEmail;
     }
-    return "priyanshu@example.com";
+    return "";
   });
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [notifications, setNotifications] = useState(true);
+
+  // Fetch active user profile + email from Supabase on mount
+  useEffect(() => {
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user?.email) {
+          setEmail(user.email);
+          localStorage.setItem("pharmaai_email", user.email);
+        }
+        if (user?.user_metadata?.full_name && !localStorage.getItem("pharmaai_name")) {
+          setName(user.user_metadata.full_name);
+        }
+      });
+    });
+
+    import("@/lib/supabase/data-service").then(({ fetchUserProfile }) => {
+      fetchUserProfile().then((prof) => {
+        if (prof) {
+          if (prof.full_name) setName(prof.full_name);
+          setRole(prof.role === "student" || prof.role === "pharmacy_student" ? "student" : "patient");
+        }
+      });
+    });
+  }, []);
+
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -55,20 +81,20 @@ export default function ProfilePage() {
     setSuccessMsg(null);
 
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+      const hasSupabase =
+        Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+        !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project") &&
+        Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-      if (!isMockMode) {
+      if (hasSupabase) {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
-        const { error } = await supabase.auth.updateUser({
+        await supabase.auth.updateUser({
           data: { full_name: name },
         });
-        if (error) throw error;
-      } else {
-        await new Promise((r) => setTimeout(r, 400));
+
+        const { updateUserProfile } = await import("@/lib/supabase/data-service");
+        await updateUserProfile({ full_name: name });
       }
 
       localStorage.setItem("pharmaai_name", name);
@@ -85,17 +111,20 @@ export default function ProfilePage() {
     const newRole: UserRole = role === "patient" ? "student" : "patient";
     setLoading(true);
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+      const hasSupabase =
+        Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+        !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project") &&
+        Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-      if (!isMockMode) {
+      if (hasSupabase) {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         await supabase.auth.updateUser({
           data: { role: newRole },
         });
+
+        const { updateUserProfile } = await import("@/lib/supabase/data-service");
+        await updateUserProfile({ role: newRole });
       }
 
       localStorage.setItem("pharmaai_role", newRole);
@@ -116,18 +145,14 @@ export default function ProfilePage() {
   async function handleLogout() {
     setLoading(true);
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
-
-      if (!isMockMode) {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase.auth.signOut();
-      }
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      await supabase.auth.signOut();
 
       localStorage.removeItem("pharmaai_auth");
+      localStorage.removeItem("pharmaai_email");
+      localStorage.removeItem("pharmaai_name");
+      localStorage.removeItem("pharmaai_role");
       router.replace("/login");
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to sign out.");
@@ -139,12 +164,12 @@ export default function ProfilePage() {
     if (deleteInput.trim().toUpperCase() !== "DELETE") return;
     setLoading(true);
     try {
-      const isMockMode =
-        process.env.NEXT_PUBLIC_AI_MODE === "mock" ||
-        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+      const hasSupabase =
+        Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+        !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("your-project") &&
+        Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-      if (!isMockMode) {
+      if (hasSupabase) {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         await supabase.auth.signOut();

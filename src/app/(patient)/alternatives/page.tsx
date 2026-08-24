@@ -2,42 +2,45 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
+import { AlertTriangle, RefreshCw, Loader2, Search } from "lucide-react";
 import { MedDisclaimer } from "@/components/shared/MedDisclaimer";
 import { mockGetAlternatives } from "@/lib/ai/mock-responses";
 import { formatCurrency } from "@/lib/utils";
 import type { GenericAlternative } from "@/lib/types";
 
-const CURRENT_MEDICINE = {
-  name: "Crocin 500mg",
-  active_ingredient: "Paracetamol",
-  strength: "500mg",
-  dosage_form: "Tablet",
-};
-
 export default function AlternativesPage() {
   const [alternatives, setAlternatives] = useState<GenericAlternative[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [searchInput, setSearchInput] = useState("Paracetamol 500mg");
+  const [activeSearch, setActiveSearch] = useState("Paracetamol 500mg");
 
   useEffect(() => {
-    load();
-  }, []);
+    load(activeSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSearch]);
 
-  async function load() {
+  async function load(query: string) {
     setLoading(true);
     setError(false);
     try {
-      const data = await mockGetAlternatives(
-        CURRENT_MEDICINE.active_ingredient,
-        CURRENT_MEDICINE.strength
-      );
+      // Parse "ingredient strength" from query string
+      const parts = query.trim().split(/\s+/);
+      const strength = parts.find((p) => /\d/.test(p)) || "";
+      const ingredient = parts.filter((p) => !/\d/.test(p)).join(" ") || query;
+      const data = await mockGetAlternatives(ingredient, strength);
       setAlternatives(data);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!searchInput.trim()) return;
+    setActiveSearch(searchInput.trim());
   }
 
   return (
@@ -59,10 +62,47 @@ export default function AlternativesPage() {
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 2 }}>
           Same active ingredient, possibly lower cost
         </p>
+
+        {/* Search */}
+        <form onSubmit={handleSearch} style={{ marginTop: 12, position: "relative" }}>
+          <Search
+            size={15}
+            style={{
+              position: "absolute",
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "var(--color-text-muted)",
+              pointerEvents: "none",
+            }}
+          />
+          <input
+            type="text"
+            className="input-base"
+            style={{ paddingLeft: 36, paddingRight: 80, fontSize: 13 }}
+            placeholder="e.g. Paracetamol 500mg, Metformin…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{
+              position: "absolute",
+              right: 4,
+              top: "50%",
+              transform: "translateY(-50%)",
+              padding: "6px 12px",
+              fontSize: 12,
+            }}
+          >
+            Search
+          </button>
+        </form>
       </div>
 
       <div style={{ padding: "16px" }}>
-        {/* Current medicine */}
+        {/* Current search context */}
         <div
           className="card"
           style={{
@@ -73,13 +113,10 @@ export default function AlternativesPage() {
           }}
         >
           <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-primary)", marginBottom: 4 }}>
-            CURRENTLY VIEWING ALTERNATIVES FOR
+            SEARCHING ALTERNATIVES FOR
           </p>
           <p style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)" }}>
-            {CURRENT_MEDICINE.name}
-          </p>
-          <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-            Active Ingredient: {CURRENT_MEDICINE.active_ingredient} {CURRENT_MEDICINE.strength}
+            {activeSearch}
           </p>
         </div>
 
@@ -130,7 +167,7 @@ export default function AlternativesPage() {
             <p style={{ color: "var(--color-error)", marginBottom: 12 }}>
               Failed to load alternatives
             </p>
-            <button className="btn-secondary" onClick={load}>
+            <button className="btn-secondary" onClick={() => load(activeSearch)}>
               <RefreshCw size={16} /> Retry
             </button>
           </div>

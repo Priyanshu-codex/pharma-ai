@@ -1,28 +1,71 @@
-import { initializeApp } from "firebase/app";
-import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
+// Firebase Cloud Messaging Service Worker
+// Uses importScripts (compat SDK) — ES module `import` is NOT supported in SW scope.
 
-// Firebase config values injected for Service Worker scope
+importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js");
+
+// Read Firebase config values from the SW registration URL query parameters.
+// These are injected by firebase/config.ts when calling navigator.serviceWorker.register().
+// e.g. /firebase-messaging-sw.js?apiKey=xxx&projectId=yyy&...
+function getParam(name) {
+  try {
+    return new URL(self.location.href).searchParams.get(name) || "";
+  } catch {
+    return "";
+  }
+}
+
 const firebaseConfig = {
-  apiKey: self.location ? new URL(self.location.href).searchParams.get("apiKey") || "" : "",
-  authDomain: self.location ? new URL(self.location.href).searchParams.get("authDomain") || "" : "",
-  projectId: self.location ? new URL(self.location.href).searchParams.get("projectId") || "" : "",
-  storageBucket: self.location ? new URL(self.location.href).searchParams.get("storageBucket") || "" : "",
-  messagingSenderId: self.location ? new URL(self.location.href).searchParams.get("messagingSenderId") || "" : "",
-  appId: self.location ? new URL(self.location.href).searchParams.get("appId") || "" : "",
+  apiKey: getParam("apiKey"),
+  authDomain: getParam("authDomain"),
+  projectId: getParam("projectId"),
+  storageBucket: getParam("storageBucket"),
+  messagingSenderId: getParam("messagingSenderId"),
+  appId: getParam("appId"),
 };
 
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+// Only initialize if we have a valid projectId
+if (firebaseConfig.projectId && !firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-onBackgroundMessage(messaging, (payload) => {
-  console.log("[firebase-messaging-sw.js] Received background message ", payload);
-  const notificationTitle = payload.notification?.title || "PharmaAI Medication Reminder";
-  const notificationOptions = {
-    body: payload.notification?.body || "You have a scheduled dose pending.",
-    icon: "/icons/icon-192x192.png",
-    badge: "/icons/icon-72x72.png",
-  };
+let messaging;
+try {
+  messaging = firebase.messaging();
+} catch (e) {
+  console.warn("[firebase-messaging-sw.js] Could not initialize messaging:", e);
+}
 
-  // @ts-expect-error ServiceWorkerGlobalScope self.registration
-  self.registration.showNotification(notificationTitle, notificationOptions);
+// Handle background push messages
+if (messaging) {
+  messaging.onBackgroundMessage((payload) => {
+    console.log("[firebase-messaging-sw.js] Background message:", payload);
+
+    const title = payload.notification?.title || "PharmaAI Reminder";
+    const options = {
+      body: payload.notification?.body || "You have a scheduled medication dose pending.",
+      icon: "/icon.svg",
+      badge: "/icon.svg",
+      tag: "pharmaai-reminder",
+      renotify: true,
+      data: payload.data || {},
+    };
+
+    self.registration.showNotification(title, options);
+  });
+}
+
+// Handle notification click — bring the app to foreground
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if ("focus" in client) return client.focus();
+        }
+        return clients.openWindow("/reminders");
+      })
+  );
 });

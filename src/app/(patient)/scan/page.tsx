@@ -36,43 +36,46 @@ export default function ScanPage() {
 
     // Show preview
     const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    reader.onload = async (e) => {
+      const imageBase64 = e.target?.result as string;
+      setPreview(imageBase64);
 
-    setStatus("scanning");
-    setResult(null);
-    setScanErrorMsg(null);
-    setAddedToMeds(false);
+      setStatus("scanning");
+      setResult(null);
+      setScanErrorMsg(null);
+      setAddedToMeds(false);
 
-    try {
-      setStatus("processing");
+      try {
+        setStatus("processing");
 
-      // Validate if image is medicine-related via server API
-      const res = await fetch("/api/scan/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name }),
-      });
+        // Send both filename and imageBase64 to the server for Gemini Vision analysis
+        const res = await fetch("/api/scan/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name, imageBase64 }),
+        });
 
-      const validation = await res.json();
+        const validation = await res.json();
 
-      if (!validation.isMedicine) {
-        setScanErrorMsg(validation.error || "No medicine detected. Please upload a clear photo of a medicine strip, box, tablet, or bottle.");
+        if (!validation.isMedicine) {
+          setScanErrorMsg(validation.error || "No medicine detected. Please upload a clear photo of a medicine strip, box, tablet, or bottle.");
+          setStatus("error");
+          return;
+        }
+
+        const scanResult: ScanResult = validation.scanResult || (await mockScanMedicine());
+        if (scanResult.confidence < 0.6) {
+          setStatus("low_confidence");
+        } else {
+          setStatus("success");
+        }
+        setResult(scanResult);
+      } catch {
+        setScanErrorMsg("Unable to process image. Please try again with a clearer photo of a medicine.");
         setStatus("error");
-        return;
       }
-
-      const scanResult: ScanResult = validation.scanResult || (await mockScanMedicine());
-      if (scanResult.confidence < 0.6) {
-        setStatus("low_confidence");
-      } else {
-        setStatus("success");
-      }
-      setResult(scanResult);
-    } catch {
-      setScanErrorMsg("Unable to process image. Please try again with a clearer photo of a medicine.");
-      setStatus("error");
-    }
+    };
+    reader.readAsDataURL(file);
   }
 
   function reset() {
@@ -529,7 +532,24 @@ export default function ScanPage() {
                 <button
                   className="btn-primary"
                   style={{ justifyContent: "center" }}
-                  onClick={() => setAddedToMeds(true)}
+                  onClick={async () => {
+                    setAddedToMeds(true);
+                    if (result?.medicine) {
+                      const { addMedicineToDB } = await import("@/lib/supabase/data-service");
+                      await addMedicineToDB({
+                        name: result.medicine.name,
+                        generic_name: result.medicine.active_ingredient,
+                        brand_name: result.medicine.name,
+                        manufacturer: result.medicine.manufacturer,
+                        strength: result.medicine.strength,
+                        dosage_form: result.medicine.dosage_form,
+                        frequency: "Once daily",
+                        next_dose: "09:00",
+                        reminder_enabled: true,
+                        icon: "💊",
+                      });
+                    }
+                  }}
                   disabled={addedToMeds}
                 >
                   {addedToMeds ? (
