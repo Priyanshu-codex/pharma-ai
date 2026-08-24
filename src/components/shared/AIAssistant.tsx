@@ -71,19 +71,44 @@ export function AIAssistant({ mode }: AIAssistantProps) {
     setIsLoading(true);
 
     try {
-      const response = await mockChatResponse([...messages, userMessage], mode);
+      const historyPayload = messages.slice(-10).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: content.trim(),
+          history: historyPayload,
+          role: mode,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const responseText = data.text || (await mockChatResponse([...messages, userMessage], mode));
+      const extractedSources: string[] = data.sources
+        ? data.sources.map((s: { title?: string; uri?: string }) => s.title || s.uri || "")
+        : [];
+
       const assistantMessage: ChatMessage = {
         id: generateId(),
         role: "assistant",
-        content: response,
+        content: responseText,
         timestamp: new Date().toISOString(),
+        sources: extractedSources.filter(Boolean),
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch {
       const errorMessage: ChatMessage = {
         id: generateId(),
         role: "assistant",
-        content: "I'm having trouble responding right now. Please try again.",
+        content: "Something went wrong while fetching response. Click **Retry** below to resend.",
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -222,9 +247,18 @@ export function AIAssistant({ mode }: AIAssistantProps) {
         )}
 
         {/* Message List */}
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
+        {messages.map((message, idx) => {
+          const isLast = idx === messages.length - 1;
+          const isError = message.content.includes("Something went wrong");
+          const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
+          return (
+            <MessageBubble
+              key={message.id}
+              message={message}
+              onRetry={isLast && isError && lastUserMsg ? () => sendMessage(lastUserMsg) : undefined}
+            />
+          );
+        })}
 
         {/* Typing Indicator */}
         {isLoading && (
@@ -377,7 +411,7 @@ export function AIAssistant({ mode }: AIAssistantProps) {
 }
 
 // ── Message Bubble Component ──────────────────────────────
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, onRetry }: { message: ChatMessage; onRetry?: () => void }) {
   const isUser = message.role === "user";
 
   return (
@@ -428,13 +462,50 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           whiteSpace: "pre-wrap",
         }}
       >
-        {/* Render bold markdown */}
+        {/* Render bold & heading markdown */}
         {message.content.split(/\*\*(.*?)\*\*/g).map((part, i) =>
           i % 2 === 1 ? (
             <strong key={i}>{part}</strong>
           ) : (
             <span key={i}>{part}</span>
           )
+        )}
+        {/* Citations / Grounding sources */}
+        {message.sources && message.sources.length > 0 && (
+          <div
+            style={{
+              marginTop: 10,
+              paddingTop: 8,
+              borderTop: "1px solid var(--color-border-light)",
+              fontSize: 11,
+              color: "var(--color-text-muted)",
+            }}
+          >
+            <p style={{ fontWeight: 600, marginBottom: 4 }}>📌 Web Grounding Sources:</p>
+            {message.sources.map((src, idx) => (
+              <p key={idx} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                · {src}
+              </p>
+            ))}
+          </div>
+        )}
+        {onRetry && (
+          <div style={{ marginTop: 8 }}>
+            <button
+              onClick={onRetry}
+              className="btn-secondary"
+              style={{
+                padding: "4px 10px",
+                fontSize: 12,
+                borderRadius: "var(--radius-sm)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <RefreshCw size={12} /> Retry
+            </button>
+          </div>
         )}
       </div>
 

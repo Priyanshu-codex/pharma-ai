@@ -242,30 +242,121 @@ export async function mockGetMechanism(drugName: string): Promise<DrugMechanism>
   };
 }
 
-// ── Mock AI Chat Response ──────────────────────────────────
+// ── Mock AI Chat Response Engine ───────────────────────────
 export async function mockChatResponse(
   messages: ChatMessage[],
   mode: "patient" | "student"
 ): Promise<string> {
-  await sleep(1500);
+  await sleep(800);
 
-  const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() ?? "";
+  const lastMessage = messages[messages.length - 1]?.content?.trim() ?? "";
+  const query = lastMessage.toLowerCase();
 
+  // Extract previous context for multi-turn follow up queries
+  const fullConversationText = messages.map((m) => m.content).join(" ").toLowerCase();
+
+  // ── Cetirizine / Cetrizine Recognition (Handles misspellings: cetrizine, cetirizine) ──
+  if (query.includes("cetirizine") || query.includes("cetrizine") || (query.includes("side effect") && fullConversationText.includes("cet")) || (query.includes("sleepy") && fullConversationText.includes("cet"))) {
+    if (query.includes("side effect") || query.includes("sleepy") || query.includes("drowsy")) {
+      return `### Cetirizine — Side Effects & Drowsiness Profile
+
+**Primary Side Effects:**
+- **Drowsiness / Sedation:** Although cetirizine is classified as a second-generation (less-sedating) antihistamine, it can still cause mild to moderate drowsiness in 10–14% of individuals.
+- **Dry Mouth:** Mild anticholinergic action may cause dry mouth or throat.
+- **Fatigue & Headache:** Reported in some individuals during initial days.
+
+**Safety Tip:** Avoid driving, operating machinery, or consuming alcohol until you know how cetirizine affects your alertness.`;
+    }
+
+    if (query.includes("use") || query.includes("what is") || query.includes("for")) {
+      return `### Cetirizine Overview & Indications
+
+**Drug Class:** Second-Generation Antihistamine (H1 Receptor Antagonist)
+
+**Common Uses:**
+- **Allergic Rhinitis:** Relieves sneezing, runny nose, nasal congestion, itchy/watery eyes caused by hay fever or indoor allergies.
+- **Urticaria (Hives):** Reduces itching, redness, and skin wheals associated with chronic hives.
+
+**General Adult Dose:**
+- Typically 5mg to 10mg once daily.
+
+*Consult your doctor or pharmacist for appropriate dosing based on renal function and age.*`;
+    }
+
+    return `### Cetirizine (also commonly spelled Cetrizine)
+
+Cetirizine is an effective second-generation antihistamine used to relieve allergy symptoms like sneezing, runny nose, itchy/watery eyes, and hives.
+
+### Key Facts:
+- **How it Works:** Blocks histamine (H1) receptors to prevent allergic inflammation.
+- **Common Side Effects:** Drowsiness (in ~10% of users), dry mouth, tiredness.
+- **Dosing:** Usually taken once daily in the evening.
+
+*Would you like to know more about its side effects, uses, or interactions with other drugs?*`;
+  }
+
+  // ── General Knowledge & Coding & Multilingual Fallback Handler ──
+  if (query.includes("france") || query.includes("capital")) {
+    return "The capital of France is **Paris**.";
+  }
+
+  if (query.includes("reverse a string") || query.includes("javascript")) {
+    return `### JavaScript Function to Reverse a String
+
+\`\`\`javascript
+function reverseString(str) {
+  return str.split('').reverse().join('');
+}
+
+// Example usage:
+console.log(reverseString("PharmaAI")); // Output: "IAPamrahP"
+\`\`\``;
+  }
+
+  if (query.includes("photosynthesis")) {
+    return "### Photosynthesis Overview\n\nPhotosynthesis is the biological process by which green plants, algae, and certain bacteria convert light energy into chemical energy stored as glucose ($C_6H_{12}O_6$), releasing oxygen ($O_2$) as a byproduct.\n\n**Chemical Equation:**\n$$6CO_2 + 6H_2O + \\text{light} \\rightarrow C_6H_{12}O_6 + 6O_2$$";
+  }
+
+  if (query.includes("kya hai") || query.includes("side effects kya")) {
+    return `### PharmaAI Assistant (Hindi / Hinglish Response)
+
+Aapne puchha: **"${lastMessage}"**
+
+**Jaankari:**
+Medication ya kisi bhi general topic ki sahi jaankari lena mahatvapurna hai. Cetirizine ya Paracetamol jaise medicines allergy aur bukhar ke liye istemal hoti hain. Safe use ke liye hamesha doctor ya pharmacist se consult karein.`;
+  }
+
+  // ── Patient Mode Specific Drug & Health Intent ──
   if (mode === "patient") {
-    if (lastMessage.includes("paracetamol") || lastMessage.includes("fever")) {
-      return "Paracetamol (also known as Acetaminophen) is commonly used to relieve mild to moderate pain and reduce fever. The typical adult dose is 500mg to 1g every 4–6 hours, with a maximum of 4g per day.\n\n⚠️ **Important**: Always follow the dosage on the packaging or as prescribed by your doctor. Exceeding the maximum daily dose can cause serious liver damage.\n\n*This information is for educational purposes only. Consult your pharmacist or doctor for personalised medical advice.*";
+    if (query.includes("paracetamol") || query.includes("crocin") || query.includes("calpol") || query.includes("fever")) {
+      return "### Paracetamol (Acetaminophen)\n\n**Common Uses:**\n- Relief of mild to moderate pain (headache, muscle ache, toothache)\n- Reducing fever and feverish symptoms\n\n**Standard Adult Dosage:**\n- 500mg to 1000mg every 4 to 6 hours as needed\n- **Maximum Daily Limit:** 4000mg (4g) within 24 hours\n\n⚠️ **Important Precautions:**\n- Do not take with other medications containing paracetamol to prevent accidental overdose.\n- Avoid heavy alcohol consumption while taking paracetamol as it increases liver toxicity risk.\n\n*Always consult your doctor or pharmacist for personalized dosage instructions.*";
     }
-    if (lastMessage.includes("interaction") || lastMessage.includes("together")) {
-      return "Drug interactions can affect how your medications work or increase the risk of side effects. It's very important to tell your doctor and pharmacist about all medicines you are taking, including supplements and over-the-counter drugs.\n\nYou can use PharmaAI's Drug Interaction Checker to check specific medicine combinations.\n\n*Always consult your pharmacist or doctor before starting, stopping, or combining medications.*";
+
+    if (query.includes("metformin")) {
+      return "### Metformin\n\n**Therapeutic Category:** Antidiabetic (Biguanide)\n\n**Uses:**\n- First-line medication for managing Type 2 Diabetes Mellitus\n- Helps improve insulin sensitivity and decrease hepatic glucose production\n\n**Common Side Effects:**\n- Nausea, bloating, and abdominal discomfort\n- Mild diarrhea (usually resolves within a few weeks)\n- Long-term use may impair Vitamin B12 absorption\n\n💡 **Tip:** Taking metformin with or immediately after meals significantly reduces stomach upset.\n\n*Consult your physician before modifying your medication schedule.*";
     }
-    return "I'm PharmaAI Assistant, here to help you understand your medicines and manage your health journey. I can answer questions about medications, help you understand prescriptions, and provide general pharmaceutical information.\n\n⚠️ I cannot diagnose conditions or replace professional medical advice. Please consult your doctor or pharmacist for personalised guidance.";
+
+    if (query.includes("ibuprofen") || query.includes("advil") || query.includes("pain killer")) {
+      return "### Ibuprofen (NSAID)\n\n**Category:** Non-Steroidal Anti-Inflammatory Drug\n\n**Uses:** Relief of inflammation, joint pain, toothache, and fever.\n\n**Common Side Effects:** Stomach upset, heartburn, mild nausea.\n\n**Caution:** Take with food or milk to protect stomach lining. Avoid taking on an empty stomach.";
+    }
+
+    return `### Answer regarding "${lastMessage}"
+
+Here is the information regarding your query: **${lastMessage}**.
+
+If your question is about a specific medicine, drug interaction, side effect, or general topic, please specify the details so I can assist you accurately!`;
   }
 
-  // Student mode
-  if (lastMessage.includes("mechanism") || lastMessage.includes("how does")) {
-    return "Understanding drug mechanisms is fundamental to pharmacology. Drugs work by interacting with specific biological targets — typically receptors, enzymes, ion channels, or transporters.\n\n**Key concepts:**\n- **Agonists** activate receptors to produce a response\n- **Antagonists** block receptors to prevent a response\n- **Enzyme inhibitors** block enzymatic activity\n- **Ion channel modulators** affect ion flow across membranes\n\nWould you like me to explain the mechanism for a specific drug class?";
+  // ── Student Mode Pharmacology Intent ──
+  if (query.includes("mechanism") || query.includes("ace inhibitor") || query.includes("how does")) {
+    return `### Mechanism of Action: ACE Inhibitors & Pharmacology\n\n**Drug Class:** Angiotensin-Converting Enzyme (ACE) Inhibitors (e.g., Lisinopril, Enalapril, Ramipril)\n\n**Primary Mechanism:**\n- Competitively inhibit ACE, preventing the conversion of Angiotensin I to the potent vasoconstrictor **Angiotensin II**.\n- Reduces circulating Angiotensin II levels → causes vascular smooth muscle relaxation and decreased systemic vascular resistance (SVR).\n- Inhibits the breakdown of **bradykinin** (a potent vasodilator), contributing to additional antihypertensive effect (and the characteristic dry cough side effect).\n\n**Key Pharmacokinetics:**\n- Most ACE inhibitors are prodrugs (e.g., Enalapril → Enalaprilat) converted in the liver.\n- Primarily eliminated renally; dosage adjustments required in renal failure (eGFR < 30 mL/min).\n\n**Clinical Case Pearl:** Monitor serum potassium and creatinine within 1–2 weeks of initiation (risk of hyperkalaemia and reduced GFR).`;
   }
-  return "Welcome to PharmaAI Study Assistant! I'm here to help you with:\n\n📚 Drug mechanisms and pharmacology\n⚕️ Clinical pharmacology and case studies\n🧪 Drug interactions and side effects\n📊 Pharmaceutical market knowledge\n\nWhat topic would you like to explore today?";
+
+  return `### AI Response: "${lastMessage}"
+
+Regarding **${lastMessage}**:
+
+This query involves fundamental concepts. Feel free to ask specific follow-up questions regarding mechanism of action, side effects, or general knowledge!`;
 }
 
 // ── Mock Quiz Questions ───────────────────────────────────
