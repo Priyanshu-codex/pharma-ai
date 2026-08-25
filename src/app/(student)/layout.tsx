@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { TopNav } from "@/components/layout/TopNav";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { NotificationProvider } from "@/lib/context/NotificationContext";
 
 export default function StudentLayout({
   children,
@@ -38,45 +39,37 @@ export default function StudentLayout({
   }, [router]);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--color-surface)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* Mobile Top Nav (hidden on desktop) */}
-      <MobileNav
-        mode="student"
-        userName={userName}
-        userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
-      />
+    <NotificationProvider>
+      <div style={{ minHeight: "100vh", background: "var(--color-surface)", display: "flex", flexDirection: "column" }}>
+        {/* Mobile Top Nav (hidden on desktop) */}
+        <MobileNav
+          mode="student"
+          userName={userName}
+          userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
+        />
 
-      {/* Desktop Top Nav */}
-      <TopNav
-        mode="student"
-        userName={userName}
-        userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
-      />
+        {/* Desktop Top Nav */}
+        <TopNav
+          mode="student"
+          userName={userName}
+          userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
+        />
 
-      {/* Page Content */}
-      <main
-        className="page-content-mobile md:pb-0"
-        style={{
-          flex: 1,
-          paddingTop: "env(safe-area-inset-top, 0px)",
-        }}
-      >
-        <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-          {children}
+        {/* Page Content */}
+        <main
+          className="page-content-mobile md:pb-0"
+          style={{ flex: 1, paddingTop: "env(safe-area-inset-top, 0px)" }}
+        >
+          <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%" }}>
+            {children}
+          </div>
+        </main>
+
+        {/* Mobile Bottom Nav */}
+        <div className="md:hidden">
+          <BottomNav mode="student" />
         </div>
-      </main>
-
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden">
-        <BottomNav mode="student" />
       </div>
-    </div>
+    </NotificationProvider>
   );
 }
