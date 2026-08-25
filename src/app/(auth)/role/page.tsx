@@ -65,6 +65,10 @@ export default function RolePage() {
         if (!user && !localStorage.getItem("pharmaai_auth")) {
           router.replace("/login");
         } else {
+          const storedRole = (user?.user_metadata?.role || localStorage.getItem("pharmaai_role")) as UserRole | null;
+          if (storedRole === "patient" || storedRole === "student") {
+            setSelected(storedRole);
+          }
           setAuthChecking(false);
         }
       });

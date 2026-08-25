@@ -85,19 +85,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // 2. Authenticated user visiting auth routes -> redirect to appropriate screen
+  // 2. Authenticated user visiting auth routes -> redirect to software selection (/role)
   if (user && isAuthRoute && pathname !== "/") {
-    const role = user.user_metadata?.role;
     const redirectUrl = request.nextUrl.clone();
-
-    if (role === "pharmacy_student" || role === "student") {
-      redirectUrl.pathname = "/learn";
-    } else if (role === "patient") {
-      redirectUrl.pathname = "/dashboard";
-    } else {
-      // Authenticated but no mode selected yet
-      redirectUrl.pathname = "/role";
-    }
+    redirectUrl.pathname = "/role";
     return NextResponse.redirect(redirectUrl);
   }
 
