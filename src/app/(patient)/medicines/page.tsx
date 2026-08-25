@@ -60,7 +60,8 @@ export default function MedicinesPage() {
   const filtered = medicines.filter(
     (m) =>
       m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.generic.toLowerCase().includes(search.toLowerCase())
+      m.generic.toLowerCase().includes(search.toLowerCase()) ||
+      m.manufacturer.toLowerCase().includes(search.toLowerCase())
   );
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);

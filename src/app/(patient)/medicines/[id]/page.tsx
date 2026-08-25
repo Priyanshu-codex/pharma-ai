@@ -14,6 +14,7 @@ import {
   Shield,
   FileText,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { MedDisclaimer } from "@/components/shared/MedDisclaimer";
 import type { DBMedicine } from "@/lib/supabase/data-service";
@@ -106,6 +107,14 @@ export default function MedicineDetailPage({ params }: { params: Promise<{ id: s
         </Link>
 
         <div className="flex items-center gap-2">
+          <Link
+            href={`/alternatives?drug=${encodeURIComponent(medicine.name)}`}
+            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+            title="Find Generic Alternatives for this Medicine"
+          >
+            <RefreshCw size={14} className="text-emerald-600" />
+            <span>Generic Alternatives</span>
+          </Link>
           <button
             onClick={() => setShowConfirmDelete(true)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"

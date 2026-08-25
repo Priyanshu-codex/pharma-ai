@@ -10,6 +10,7 @@ import {
   Pill,
   Clock,
   CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { getGreeting, formatTime, adherenceLabel } from "@/lib/utils";
 import { GreetingHeader } from "@/components/shared/GreetingHeader";
@@ -285,15 +286,15 @@ export default function DashboardPage() {
 
           {/* Right Column (Desktop 1 col): Quick Actions & Medicines */}
           <div className="space-y-6">
-            {/* ── Quick Actions (Hidden on desktop header, visible on mobile) ──────────────── */}
+            {/* ── Quick Actions (Visible on both desktop & mobile) ──────────────── */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="md:hidden"
+              className="mb-6"
             >
               <p className="section-title">Quick Actions</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
                 <QuickAction
                   href="/scan"
                   icon={<Scan size={24} />}
@@ -309,6 +310,14 @@ export default function DashboardPage() {
                   description="Extract & schedule"
                   color="#7c3aed"
                   bg="#f5f3ff"
+                />
+                <QuickAction
+                  href="/alternatives"
+                  icon={<RefreshCw size={24} />}
+                  label="Generic Alternatives"
+                  description="Find lower-cost equivalents & compare prices"
+                  color="#059669"
+                  bg="#ecfdf5"
                 />
               </div>
             </motion.div>

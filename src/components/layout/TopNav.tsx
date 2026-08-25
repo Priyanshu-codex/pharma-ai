@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   LineChart,
   MoreHorizontal,
+  RefreshCw,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/Logo";
@@ -50,6 +52,8 @@ const patientPrimaryItems: NavLinkItem[] = [
 
 const patientSecondaryItems: NavLinkItem[] = [
   { href: "/scan", label: "Scan & OCR", icon: <ScanLine size={15} /> },
+  { href: "/alternatives", label: "Generic Alternatives", icon: <RefreshCw size={15} /> },
+  { href: "/adherence", label: "Adherence Tracker", icon: <Activity size={15} /> },
   { href: "/learn", label: "Learn Hub", icon: <GraduationCap size={15} /> },
 ];
 
@@ -100,7 +104,6 @@ export function TopNav({ mode, userName, userInitials }: TopNavProps) {
 
   const primaryLinks = mode === "student" ? studentPrimaryItems : patientPrimaryItems;
   const secondaryLinks = mode === "student" ? studentSecondaryItems : patientSecondaryItems;
-  const allLinks = [...primaryLinks, ...secondaryLinks];
 
   return (
     <header
@@ -133,9 +136,9 @@ export function TopNav({ mode, userName, userInitials }: TopNavProps) {
             className="flex items-center gap-1 xl:gap-1.5"
             aria-label="Desktop Navigation"
           >
-            {/* XL+ view (Full 6 items direct) */}
-            <div className="hidden xl:flex items-center gap-1.5">
-              {allLinks.map((link) => {
+            {/* Primary Important Items Only */}
+            <div className="flex items-center gap-1 xl:gap-1.5">
+              {primaryLinks.map((link) => {
                 const isActive =
                   pathname === link.href ||
                   (link.href !== "/dashboard" && link.href !== "/learn" && pathname.startsWith(link.href));
@@ -146,7 +149,7 @@ export function TopNav({ mode, userName, userInitials }: TopNavProps) {
                       key={link.href}
                       href={link.href}
                       className={cn(
-                        "relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[13.5px] font-semibold transition-all duration-200 select-none whitespace-nowrap",
+                        "relative flex items-center gap-1.5 xl:gap-2 px-3 xl:px-3.5 py-1.5 rounded-xl text-[13px] xl:text-[13.5px] font-semibold transition-all duration-200 select-none whitespace-nowrap",
                         isActive
                           ? "bg-teal-50 text-teal-800 border border-teal-200/90 shadow-2xs"
                           : "text-teal-700 bg-teal-50/40 hover:bg-teal-50 hover:text-teal-900 border border-teal-100/70"
@@ -164,7 +167,7 @@ export function TopNav({ mode, userName, userInitials }: TopNavProps) {
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      "relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13.5px] font-medium transition-all duration-200 select-none whitespace-nowrap group",
+                      "relative flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-3 py-1.5 rounded-lg text-[13px] xl:text-[13.5px] font-medium transition-all duration-200 select-none whitespace-nowrap group",
                       isActive
                         ? "text-teal-700 bg-teal-50/80 font-semibold"
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
@@ -183,115 +186,97 @@ export function TopNav({ mode, userName, userInitials }: TopNavProps) {
                     {isActive && (
                       <motion.div
                         layoutId="topNavActiveBarDesktop"
-                        className="absolute bottom-0 left-3 right-3 h-[2px] bg-teal-600 rounded-full"
+                        className="absolute bottom-0 left-2.5 right-2.5 h-[2px] bg-teal-600 rounded-full"
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                       />
                     )}
                   </Link>
                 );
               })}
-            </div>
 
-            {/* LG view (4 Primary items + More Menu dropdown) */}
-            <div className="flex xl:hidden items-center gap-1">
-              {primaryLinks.map((link) => {
-                const isActive =
-                  pathname === link.href ||
-                  (link.href !== "/dashboard" && link.href !== "/learn" && pathname.startsWith(link.href));
-
-                if (link.isAi) {
-                  return (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className={cn(
-                        "relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200 select-none whitespace-nowrap",
-                        isActive
-                          ? "bg-teal-50 text-teal-800 border border-teal-200/90 shadow-2xs"
-                          : "text-teal-700 bg-teal-50/40 hover:bg-teal-50 hover:text-teal-900 border border-teal-100/70"
-                      )}
-                      aria-current={isActive ? "page" : undefined}
-                    >
-                      <Sparkles size={14} className="text-teal-600 flex-shrink-0" />
-                      <span>{link.label}</span>
-                    </Link>
-                  );
-                }
-
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                      "relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 select-none whitespace-nowrap group",
-                      isActive
-                        ? "text-teal-700 bg-teal-50/80 font-semibold"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
-                    )}
-                    aria-current={isActive ? "page" : undefined}
-                  >
-                    <span
-                      className={cn(
-                        "transition-colors duration-200 flex items-center justify-center",
-                        isActive ? "text-teal-600" : "text-slate-400 group-hover:text-slate-600"
-                      )}
-                    >
-                      {link.icon}
-                    </span>
-                    <span>{link.label}</span>
-                  </Link>
-                );
-              })}
-
-              {/* More Menu for LG screens */}
+              {/* More Menu Dropdown for Secondary Features */}
               <div className="relative">
-                <button
-                  onClick={() => {
-                    setMoreOpen((v) => !v);
-                    setNotifOpen(false);
-                    setProfileOpen(false);
-                  }}
-                  className={cn(
-                    "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[13px] font-semibold transition-all duration-200 text-slate-600 hover:bg-slate-100/60 hover:text-slate-900",
-                    moreOpen && "bg-slate-100 text-slate-900"
-                  )}
-                  aria-expanded={moreOpen}
-                  aria-label="More options menu"
-                >
-                  <MoreHorizontal size={15} />
-                  <span>More</span>
-                  <ChevronDown
-                    size={12}
-                    className={cn("transition-transform duration-200", moreOpen && "transform rotate-180")}
-                  />
-                </button>
+                {(() => {
+                  const isSecondaryActive = secondaryLinks.some(
+                    (item) =>
+                      pathname === item.href ||
+                      (item.href !== "/dashboard" && item.href !== "/learn" && pathname.startsWith(item.href))
+                  );
 
-                <AnimatePresence>
-                  {moreOpen && (
+                  return (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 4, scale: 0.96 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
-                        className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1.5 overflow-hidden"
+                      <button
+                        onClick={() => {
+                          setMoreOpen((v) => !v);
+                          setNotifOpen(false);
+                          setProfileOpen(false);
+                        }}
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 xl:px-3 py-1.5 rounded-lg text-[13px] xl:text-[13.5px] font-semibold transition-all duration-200 select-none whitespace-nowrap",
+                          isSecondaryActive
+                            ? "text-teal-700 bg-teal-50/80 font-semibold"
+                            : "text-slate-600 hover:bg-slate-100/60 hover:text-slate-900",
+                          moreOpen && "bg-slate-100 text-slate-900"
+                        )}
+                        aria-expanded={moreOpen}
+                        aria-label="More options menu"
                       >
-                        {secondaryLinks.map((item) => (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setMoreOpen(false)}
-                            className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-teal-50/60 hover:text-teal-900 transition-colors"
-                          >
-                            <span className="text-slate-400">{item.icon}</span>
-                            <span>{item.label}</span>
-                          </Link>
-                        ))}
-                      </motion.div>
+                        <MoreHorizontal size={15} />
+                        <span>More</span>
+                        {isSecondaryActive && <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />}
+                        <ChevronDown
+                          size={12}
+                          className={cn("transition-transform duration-200", moreOpen && "transform rotate-180")}
+                        />
+                      </button>
+
+                      <AnimatePresence>
+                        {moreOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+                            <motion.div
+                              initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                              transition={{ duration: 0.15, ease: "easeOut" }}
+                              className="absolute left-0 top-full mt-2 w-52 bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 py-1.5 overflow-hidden"
+                            >
+                              {secondaryLinks.map((item) => {
+                                const isItemActive =
+                                  pathname === item.href ||
+                                  (item.href !== "/dashboard" &&
+                                    item.href !== "/learn" &&
+                                    pathname.startsWith(item.href));
+
+                                return (
+                                  <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={() => setMoreOpen(false)}
+                                    className={cn(
+                                      "flex items-center justify-between px-3.5 py-2 text-xs font-semibold transition-colors",
+                                      isItemActive
+                                        ? "bg-teal-50/80 text-teal-800 font-bold"
+                                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-2.5">
+                                      <span className={cn(isItemActive ? "text-teal-600" : "text-slate-400")}>
+                                        {item.icon}
+                                      </span>
+                                      <span>{item.label}</span>
+                                    </div>
+                                    {isItemActive && <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />}
+                                  </Link>
+                                );
+                              })}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </>
-                  )}
-                </AnimatePresence>
+                  );
+                })()}
               </div>
             </div>
           </nav>
