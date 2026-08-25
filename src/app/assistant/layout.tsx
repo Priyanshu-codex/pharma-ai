@@ -48,17 +48,10 @@ export default function AssistantLayout({
 
   return (
     <NotificationProvider>
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--color-surface)",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
+      <div className="h-[100dvh] md:min-h-screen bg-[var(--color-surface)] flex flex-col overflow-hidden w-full">
         <MobileNav mode={mode} userName={userName} userInitials={userInitials} />
         <TopNav mode={mode} userName={userName} userInitials={userInitials} />
-        <main style={{ flex: 1 }}>{children}</main>
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative w-full">{children}</main>
         <div className="md:hidden">
           <BottomNav mode={mode} />
         </div>
