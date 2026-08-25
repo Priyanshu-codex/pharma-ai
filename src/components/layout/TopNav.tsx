@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/Logo";
+import { useNotifications } from "@/lib/context/NotificationContext";
 
 interface TopNavProps {
   mode: "patient" | "student";
@@ -64,23 +65,6 @@ const studentSecondaryItems: NavLinkItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: <Home size={15} /> },
 ];
 
-// Unread notification state
-const INITIAL_NOTIFICATIONS = [
-  {
-    id: "n1",
-    title: "Medication Reminder",
-    body: "Time to take Metformin 500mg (1 tablet with water).",
-    time: "10 mins ago",
-    unread: true,
-  },
-  {
-    id: "n2",
-    title: "Weekly Adherence Update",
-    body: "You hit a 4-day streak! Adherence is at 78%.",
-    time: "2 hours ago",
-    unread: true,
-  },
-];
 
 export function TopNav({ mode, userName, userInitials }: TopNavProps) {
   const pathname = usePathname();
@@ -90,15 +74,10 @@ export function TopNav({ mode, userName, userInitials }: TopNavProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
 
-  const primaryLinks = mode === "student" ? studentPrimaryItems : patientPrimaryItems;
-  const secondaryLinks = mode === "student" ? studentSecondaryItems : patientSecondaryItems;
-  const allLinks = [...primaryLinks, ...secondaryLinks];
-
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  // ── Live notifications from shared context ────────────
+  const { notifications, unreadCount, markAllRead, removeNotification } = useNotifications();
   const displayName = userName || "User";
-  
   // Initials formatting with fallback
   const initials =
     userInitials ||
@@ -119,13 +98,9 @@ export function TopNav({ mode, userName, userInitials }: TopNavProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  const primaryLinks = mode === "student" ? studentPrimaryItems : patientPrimaryItems;
+  const secondaryLinks = mode === "student" ? studentSecondaryItems : patientSecondaryItems;
+  const allLinks = [...primaryLinks, ...secondaryLinks];
 
   return (
     <header

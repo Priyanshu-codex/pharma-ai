@@ -187,7 +187,7 @@ export default function RemindersPage() {
           borderBottom: "1px solid var(--color-border-light)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--color-text-primary)" }}>
               Today&apos;s Schedule
@@ -200,7 +200,7 @@ export default function RemindersPage() {
               })}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={sendTestNotification}
               className="p-2 text-[var(--color-primary)] hover:bg-[var(--color-primary-50)] rounded-lg transition-colors border border-[var(--color-border-light)]"
@@ -523,11 +523,12 @@ function ReminderCard({
             borderTop: "1px solid var(--color-border-light)",
             display: "flex",
             gap: 8,
+            flexWrap: "wrap",
           }}
         >
           <button
             className="btn-primary"
-            style={{ flex: 1, justifyContent: "center", padding: "9px 12px", fontSize: 13 }}
+            style={{ flex: "1 1 80px", justifyContent: "center", padding: "9px 12px", fontSize: 13 }}
             onClick={onTaken}
             disabled={isLoading}
           >
@@ -542,7 +543,7 @@ function ReminderCard({
           </button>
           <button
             className="btn-ghost"
-            style={{ flex: 1, justifyContent: "center", padding: "9px 12px", fontSize: 13 }}
+            style={{ flex: "1 1 80px", justifyContent: "center", padding: "9px 12px", fontSize: 13 }}
             onClick={onSnoozed}
             disabled={isLoading}
           >
@@ -551,7 +552,7 @@ function ReminderCard({
           </button>
           <button
             className="btn-ghost"
-            style={{ flex: 1, justifyContent: "center", padding: "9px 12px", fontSize: 13, color: "var(--color-error)", borderColor: "var(--color-error)" }}
+            style={{ flex: "1 1 80px", justifyContent: "center", padding: "9px 12px", fontSize: 13, color: "var(--color-error)", borderColor: "var(--color-error)" }}
             onClick={onSkipped}
             disabled={isLoading}
           >

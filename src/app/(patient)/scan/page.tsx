@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { MedDisclaimer } from "@/components/shared/MedDisclaimer";
 import { ConfidenceBadge } from "@/components/shared/ConfidenceBadge";
+import { CameraModal } from "@/components/shared/CameraModal";
 import { mockScanMedicine } from "@/lib/ai/mock-responses";
 import type { ScanStatus, ScanResult } from "@/lib/types";
 import Link from "next/link";
@@ -29,7 +30,8 @@ export default function ScanPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [frequency, setFrequency] = useState("Once daily");
   const [nextDoseTime, setNextDoseTime] = useState("09:00");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   async function handleAddMedicineConfirm() {
     setShowAddModal(false);
@@ -107,13 +109,44 @@ export default function ScanPage() {
     setPreview(null);
     setScanErrorMsg(null);
     setAddedToMeds(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (uploadInputRef.current) uploadInputRef.current.value = "";
+  }
+
+  async function handleCameraCapture(dataUrl: string, file: File) {
+    setShowCamera(false);
+    setPreview(dataUrl);
+    setStatus("scanning");
+    setResult(null);
+    setScanErrorMsg(null);
+    setAddedToMeds(false);
+
+    try {
+      setStatus("processing");
+      const res = await fetch("/api/scan/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name, imageBase64: dataUrl }),
+      });
+      const validation = await res.json();
+      if (!validation.isMedicine) {
+        setScanErrorMsg(validation.error || "No medicine detected. Please capture a clear photo of a medicine strip, box, tablet, or bottle.");
+        setStatus("error");
+        return;
+      }
+      const scanResult: ScanResult = validation.scanResult || (await mockScanMedicine());
+      setStatus(scanResult.confidence < 0.6 ? "low_confidence" : "success");
+      setResult(scanResult);
+    } catch {
+      setScanErrorMsg("Unable to process image. Please try again with a clearer photo.");
+      setStatus("error");
+    }
   }
 
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto" }}>
-      {/* Header */}
+    <div className="w-full max-w-[430px] md:max-w-none mx-auto">
+      {/* Mobile Header */}
       <div
+        className="md:hidden"
         style={{
           background: "var(--color-bg)",
           padding: "16px 20px 14px",
@@ -134,7 +167,15 @@ export default function ScanPage() {
         </p>
       </div>
 
-      <div style={{ padding: "16px 16px" }}>
+      {/* Desktop Page Header */}
+      <div className="hidden md:block px-6 py-6 border-b border-[var(--color-border-light)] bg-white mb-6">
+        <h1 className="text-2xl font-extrabold text-[var(--color-text-primary)]">Scan Medicine 💊</h1>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+          Identify any medicine with AI — scan or upload a photo of the packaging, label, or blister pack
+        </p>
+      </div>
+
+      <div className="px-4 md:px-6">
         {/* ── IDLE / CAPTURE STATES ─────────────────────── */}
         <AnimatePresence mode="wait">
           {(status === "idle" || status === "capturing") && !preview && (
@@ -144,105 +185,112 @@ export default function ScanPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -16 }}
             >
-              {/* Scanner Zone */}
-              <div
-                style={{
-                  background: "var(--color-primary-50)",
-                  border: "2px dashed var(--color-primary-200)",
-                  borderRadius: "var(--radius-xl)",
-                  padding: "36px 24px",
-                  textAlign: "center",
-                  marginBottom: 16,
-                }}
-              >
-                {/* Capsule illustration */}
-                <div style={{ fontSize: 56, marginBottom: 16 }}>💊</div>
-                <h2
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 17,
-                    color: "var(--color-text-primary)",
-                    marginBottom: 8,
-                  }}
-                >
-                  Point camera at medicine
-                </h2>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: "var(--color-text-secondary)",
-                    lineHeight: 1.6,
-                    marginBottom: 20,
-                  }}
-                >
-                  Scan the medicine packaging, label, or blister pack. AI will identify the medicine and provide key information.
-                </p>
-
-                {/* Action Buttons */}
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button
-                    className="btn-primary"
-                    style={{ flex: 1, justifyContent: "center" }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera size={18} />
-                    Camera
-                  </button>
-                  <button
-                    className="btn-secondary"
-                    style={{ flex: 1, justifyContent: "center" }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload size={18} />
-                    Upload
-                  </button>
-                </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileSelect(file);
-                  }}
-                />
-              </div>
-
-              {/* Tips */}
-              <div className="card" style={{ padding: 14 }}>
-                <p
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--color-text-secondary)",
-                    marginBottom: 8,
-                  }}
-                >
-                  📸 Tips for best results
-                </p>
-                {[
-                  "Ensure the label is clearly visible and in focus",
-                  "Good lighting improves accuracy",
-                  "Capture the full medicine name",
-                  "Avoid glare and shadows",
-                ].map((tip) => (
-                  <p
-                    key={tip}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                {/* Left: Scanner Zone */}
+                <div>
+                  <div
                     style={{
-                      fontSize: 12,
-                      color: "var(--color-text-muted)",
-                      padding: "3px 0",
+                      background: "var(--color-primary-50)",
+                      border: "2px dashed var(--color-primary-200)",
+                      borderRadius: "var(--radius-xl)",
+                      padding: "36px 24px",
+                      textAlign: "center",
+                      marginBottom: 16,
                     }}
                   >
-                    · {tip}
-                  </p>
-                ))}
-              </div>
+                    {/* Capsule illustration */}
+                    <div style={{ fontSize: 56, marginBottom: 16 }}>💊</div>
+                    <h2
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 17,
+                        color: "var(--color-text-primary)",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Point camera at medicine
+                    </h2>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: "var(--color-text-secondary)",
+                        lineHeight: 1.6,
+                        marginBottom: 20,
+                      }}
+                    >
+                      Scan the medicine packaging, label, or blister pack. AI will identify the medicine and provide key information.
+                    </p>
 
-              <MedDisclaimer style={{ marginTop: 12 }} />
+                    {/* Action Buttons */}
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button
+                        className="btn-primary"
+                        style={{ flex: 1, justifyContent: "center" }}
+                        onClick={() => setShowCamera(true)}
+                      >
+                        <Camera size={18} />
+                        Camera
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        style={{ flex: 1, justifyContent: "center" }}
+                        onClick={() => uploadInputRef.current?.click()}
+                      >
+                        <Upload size={18} />
+                        Upload
+                      </button>
+                    </div>
+
+                    {/* Upload input — opens file picker / gallery */}
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileSelect(file);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Right: Tips + Disclaimer */}
+                <div>
+                  {/* Tips */}
+                  <div className="card" style={{ padding: 14, marginBottom: 12 }}>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--color-text-secondary)",
+                        marginBottom: 8,
+                      }}
+                    >
+                      📸 Tips for best results
+                    </p>
+                    {[
+                      "Ensure the label is clearly visible and in focus",
+                      "Good lighting improves accuracy",
+                      "Capture the full medicine name",
+                      "Avoid glare and shadows",
+                    ].map((tip) => (
+                      <p
+                        key={tip}
+                        style={{
+                          fontSize: 12,
+                          color: "var(--color-text-muted)",
+                          padding: "3px 0",
+                        }}
+                      >
+                        · {tip}
+                      </p>
+                    ))}
+                  </div>
+
+                  <MedDisclaimer style={{ marginTop: 0 }} />
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -703,6 +751,14 @@ export default function ScanPage() {
         </div>
       )}
       </div>
+
+      {/* Camera Modal */}
+      {showCamera && (
+        <CameraModal
+          onCapture={handleCameraCapture}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   );
 }

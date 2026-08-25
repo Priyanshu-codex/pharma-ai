@@ -1,7 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+
+const emptySubscribe = () => () => {};
+function useIsHydrated() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,6 +36,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/Logo";
+import { useNotifications } from "@/lib/context/NotificationContext";
 
 interface MobileNavProps {
   mode?: "patient" | "student";
@@ -61,22 +71,6 @@ const studentSecondaryNavItems: NavLinkItem[] = [
   { href: "/privacy", label: "Privacy Policy", icon: <ShieldCheck size={18} /> },
 ];
 
-const INITIAL_NOTIFICATIONS = [
-  {
-    id: "n1",
-    title: "Medication Reminder",
-    body: "Time to take Metformin 500mg (1 tablet with water).",
-    time: "10 mins ago",
-    unread: true,
-  },
-  {
-    id: "n2",
-    title: "Weekly Adherence Update",
-    body: "You hit a 4-day streak! Adherence is at 78%.",
-    time: "2 hours ago",
-    unread: true,
-  },
-];
 
 export function MobileNav({ mode = "patient", userName, userInitials }: MobileNavProps) {
   const pathname = usePathname();
@@ -84,11 +78,12 @@ export function MobileNav({ mode = "patient", userName, userInitials }: MobileNa
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsHydrated();
+
+  // ── Live notifications from shared context ────────────
+  const { notifications, unreadCount, markAllRead, removeNotification } = useNotifications();
 
   const secondaryNavItems = mode === "student" ? studentSecondaryNavItems : patientSecondaryNavItems;
-  const unreadCount = notifications.filter((n) => n.unread).length;
   const displayName = userName || "User";
   const initials =
     userInitials ||
@@ -100,11 +95,6 @@ export function MobileNav({ mode = "patient", userName, userInitials }: MobileNa
           .toUpperCase()
           .slice(0, 2)
       : "U");
-
-  // Mount flag for portal rendering (avoids SSR hydration mismatch)
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Prevent background scroll when drawer or notification sheet is open
   useEffect(() => {
@@ -118,13 +108,7 @@ export function MobileNav({ mode = "patient", userName, userInitials }: MobileNa
     };
   }, [drawerOpen, notifOpen]);
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  };
 
-  const removeNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
 
   return (
     <>

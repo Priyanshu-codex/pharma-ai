@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { TopNav } from "@/components/layout/TopNav";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { NotificationProvider } from "@/lib/context/NotificationContext";
 
 export default function PatientLayout({
   children,
@@ -38,52 +39,54 @@ export default function PatientLayout({
   }, [router]);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--color-surface)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* Mobile Top Nav (hidden on desktop) */}
-      <MobileNav
-        mode="patient"
-        userName={userName}
-        userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
-      />
-
-      {/* Desktop Top Nav (hidden on mobile) */}
-      <TopNav
-        mode="patient"
-        userName={userName}
-        userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
-      />
-
-      {/* Page Content */}
-      <main
-        className="page-content-mobile md:pb-0"
+    <NotificationProvider>
+      <div
         style={{
-          flex: 1,
-          paddingTop: "env(safe-area-inset-top, 0px)",
+          minHeight: "100vh",
+          background: "var(--color-surface)",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        {/* Desktop: constrained width wrapper */}
-        <div
+        {/* Mobile Top Nav (hidden on desktop) */}
+        <MobileNav
+          mode="patient"
+          userName={userName}
+          userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
+        />
+
+        {/* Desktop Top Nav (hidden on mobile) */}
+        <TopNav
+          mode="patient"
+          userName={userName}
+          userInitials={userName ? userName.charAt(0).toUpperCase() : "P"}
+        />
+
+        {/* Page Content */}
+        <main
+          className="page-content-mobile md:pb-0"
           style={{
-            maxWidth: 1200,
-            margin: "0 auto",
-            width: "100%",
+            flex: 1,
+            paddingTop: "env(safe-area-inset-top, 0px)",
           }}
         >
-          {children}
-        </div>
-      </main>
+          {/* Desktop: constrained width wrapper */}
+          <div
+            style={{
+              maxWidth: 1200,
+              margin: "0 auto",
+              width: "100%",
+            }}
+          >
+            {children}
+          </div>
+        </main>
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden">
-        <BottomNav mode="patient" />
+        {/* Mobile Bottom Nav */}
+        <div className="md:hidden">
+          <BottomNav mode="patient" />
+        </div>
       </div>
-    </div>
+    </NotificationProvider>
   );
 }

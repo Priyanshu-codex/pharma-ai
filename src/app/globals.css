@@ -236,6 +236,47 @@ button, a, [role="button"] {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
+/* input-field is an alias for input-base (used in modal forms) */
+.input-field {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.input-field::placeholder {
+  color: var(--color-text-muted);
+}
+
+.input-field:focus {
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+}
+
+/* Responsive flex-child utility — prevents overflow in flex rows */
+.min-w-0 {
+  min-width: 0;
+}
+
+/* Responsive button row — wraps on very small screens */
+.btn-row-responsive {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 360px) {
+  .btn-row-responsive {
+    flex-wrap: nowrap;
+  }
+}
+
 /* Badge */
 .badge {
   display: inline-flex;

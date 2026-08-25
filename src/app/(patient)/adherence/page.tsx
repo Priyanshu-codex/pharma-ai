@@ -193,7 +193,7 @@ export default function AdherencePage() {
               key={period}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}
+              style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}
             >
               <StatCard
                 label="Adherence"
@@ -246,32 +246,34 @@ export default function AdherencePage() {
                   </p>
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={data} barSize={14} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
-                    <XAxis
-                      dataKey={period === "daily" ? "shortLabel" : "label"}
-                      tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={24}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: 8,
-                        border: "1px solid var(--color-border)",
-                        fontSize: 12,
-                      }}
-                    />
-                    <Bar dataKey="taken" name="Taken" fill="var(--color-primary)" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="skipped" name="Skipped" fill="#fca5a5" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div style={{ width: "100%", minWidth: 0, overflowX: "auto" }}>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <BarChart data={data} barSize={14} barGap={2}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
+                      <XAxis
+                        dataKey={period === "daily" ? "shortLabel" : "label"}
+                        tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={24}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: 8,
+                          border: "1px solid var(--color-border)",
+                          fontSize: 12,
+                        }}
+                      />
+                      <Bar dataKey="taken" name="Taken" fill="var(--color-primary)" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="skipped" name="Skipped" fill="#fca5a5" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </motion.div>
 
@@ -296,36 +298,38 @@ export default function AdherencePage() {
                 >
                   Adherence Trend (%)
                 </p>
-                <ResponsiveContainer width="100%" height={140}>
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
-                    <XAxis
-                      dataKey={period === "daily" ? "shortLabel" : "label"}
-                      tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      domain={[0, 100]}
-                      tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={30}
-                    />
-                    <Tooltip
-                      contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 12 }}
-                      formatter={(value) => [`${value}%`, "Adherence"]}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="adherence"
-                      stroke="var(--color-primary)"
-                      strokeWidth={2.5}
-                      dot={{ r: 4, fill: "var(--color-primary)", strokeWidth: 0 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div style={{ width: "100%", minWidth: 0, overflowX: "auto" }}>
+                  <ResponsiveContainer width="100%" height={140}>
+                    <LineChart data={data}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
+                      <XAxis
+                        dataKey={period === "daily" ? "shortLabel" : "label"}
+                        tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tick={{ fontSize: 10, fill: "var(--color-text-muted)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={30}
+                      />
+                      <Tooltip
+                        contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 12 }}
+                        formatter={(value) => [`${value}%`, "Adherence"]}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="adherence"
+                        stroke="var(--color-primary)"
+                        strokeWidth={2.5}
+                        dot={{ r: 4, fill: "var(--color-primary)", strokeWidth: 0 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </motion.div>
             )}
 
