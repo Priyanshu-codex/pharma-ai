@@ -29,17 +29,6 @@ interface NotificationContextValue {
   addNotification: (n: Omit<AppNotification, "id" | "time" | "unread">) => void;
 }
 
-// ── Context ────────────────────────────────────────────────
-const NotificationContext = createContext<NotificationContextValue | null>(null);
-
-export function useNotifications(): NotificationContextValue {
-  const ctx = useContext(NotificationContext);
-  if (!ctx) {
-    throw new Error("useNotifications must be used inside <NotificationProvider>");
-  }
-  return ctx;
-}
-
 // ── Seed data (shown before any live FCM arrives) ──────────
 const SEED_NOTIFICATIONS: AppNotification[] = [
   {
@@ -57,6 +46,22 @@ const SEED_NOTIFICATIONS: AppNotification[] = [
     unread: true,
   },
 ];
+
+// ── Context ────────────────────────────────────────────────
+const NotificationContext = createContext<NotificationContextValue | null>(null);
+
+const DEFAULT_NOTIFICATION_CONTEXT: NotificationContextValue = {
+  notifications: SEED_NOTIFICATIONS,
+  unreadCount: SEED_NOTIFICATIONS.filter((n) => n.unread).length,
+  markAllRead: () => {},
+  removeNotification: () => {},
+  addNotification: () => {},
+};
+
+export function useNotifications(): NotificationContextValue {
+  const ctx = useContext(NotificationContext);
+  return ctx || DEFAULT_NOTIFICATION_CONTEXT;
+}
 
 // ── Provider ───────────────────────────────────────────────
 export function NotificationProvider({ children }: { children: ReactNode }) {

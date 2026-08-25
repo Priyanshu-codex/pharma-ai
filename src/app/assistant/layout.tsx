@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { TopNav } from "@/components/layout/TopNav";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { NotificationProvider } from "@/lib/context/NotificationContext";
 import type { UserRole } from "@/lib/types";
 
 export default function AssistantLayout({
@@ -46,20 +47,22 @@ export default function AssistantLayout({
   const userInitials = userName && userName !== "User" ? userName.charAt(0).toUpperCase() : "U";
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--color-surface)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <MobileNav mode={mode} userName={userName} userInitials={userInitials} />
-      <TopNav mode={mode} userName={userName} userInitials={userInitials} />
-      <main style={{ flex: 1 }}>{children}</main>
-      <div className="md:hidden">
-        <BottomNav mode={mode} />
+    <NotificationProvider>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "var(--color-surface)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <MobileNav mode={mode} userName={userName} userInitials={userInitials} />
+        <TopNav mode={mode} userName={userName} userInitials={userInitials} />
+        <main style={{ flex: 1 }}>{children}</main>
+        <div className="md:hidden">
+          <BottomNav mode={mode} />
+        </div>
       </div>
-    </div>
+    </NotificationProvider>
   );
 }

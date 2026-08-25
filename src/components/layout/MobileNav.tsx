@@ -1,7 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+
+const emptySubscribe = () => () => {};
+function useIsHydrated() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -69,7 +78,7 @@ export function MobileNav({ mode = "patient", userName, userInitials }: MobileNa
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsHydrated();
 
   // ── Live notifications from shared context ────────────
   const { notifications, unreadCount, markAllRead, removeNotification } = useNotifications();
@@ -86,11 +95,6 @@ export function MobileNav({ mode = "patient", userName, userInitials }: MobileNa
           .toUpperCase()
           .slice(0, 2)
       : "U");
-
-  // Mount flag for portal rendering (avoids SSR hydration mismatch)
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Prevent background scroll when drawer or notification sheet is open
   useEffect(() => {
