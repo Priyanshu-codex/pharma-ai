@@ -71,40 +71,8 @@ export default function LoginPage() {
         localStorage.setItem("pharmaai_name", data.user.user_metadata.full_name);
       }
 
-      // Check whether user has selected an application mode
-      let userRole: string | undefined = data.user.user_metadata?.role;
-
-      if (!userRole) {
-        // Check profiles database table
-        try {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", data.user.id)
-            .single();
-
-          if (profile?.role) {
-            userRole = profile.role;
-          }
-        } catch {
-          // Profile lookup fallback
-        }
-      }
-
-      if (!userRole) {
-        userRole = localStorage.getItem("pharmaai_role") || undefined;
-      }
-
-      if (userRole === "patient") {
-        localStorage.setItem("pharmaai_role", "patient");
-        router.replace("/dashboard");
-      } else if (userRole === "student" || userRole === "pharmacy_student") {
-        localStorage.setItem("pharmaai_role", "student");
-        router.replace("/learn");
-      } else {
-        // No mode selected yet — route to Select Mode
-        router.replace("/role");
-      }
+      // Route to Software Selection after successful login
+      router.replace("/role");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unable to connect to authentication server. Please try again.";
       setError(msg);
