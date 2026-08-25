@@ -154,10 +154,18 @@ export interface GenericAlternative {
   strength: string;
   dosage_form: string;
   price?: number;
+  original_price?: number;
+  savings?: number;
+  savings_percentage?: number;
   currency?: string;
   pack_size?: string;
+  availability?: string;
   data_source: string;
   last_updated?: string;
+  retailers?: Array<{
+    name: string;
+    price: number;
+  }>;
 }
 
 // ── Price Types ───────────────────────────────────────────

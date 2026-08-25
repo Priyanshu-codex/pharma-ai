@@ -28,10 +28,11 @@ interface SpeechRecognitionInstance {
 }
 
 const PATIENT_SUGGESTIONS = [
-  "What is Paracetamol used for?",
-  "Can I take ibuprofen with blood pressure medication?",
-  "How do I manage missed doses?",
-  "What are common side effects of Metformin?",
+  "What is Paracetamol 500mg used for?",
+  "What are common side effects of Cetirizine?",
+  "Show generic alternatives for Pantoprazole 40mg",
+  "What category does Metformin belong to?",
+  "How should Amoxicillin generally be stored?",
 ];
 
 const STUDENT_SUGGESTIONS = [

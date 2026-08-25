@@ -25,7 +25,6 @@ import {
   Settings,
   LogOut,
   CheckCircle2,
-  Tag,
   RefreshCw,
   Activity,
   BookOpen,
@@ -52,9 +51,8 @@ interface NavLinkItem {
 
 // SECONDARY FEATURES ONLY (Excludes primary items present in Patient BottomNav: /dashboard, /scan, /medicines, /reminders, /assistant)
 const patientSecondaryNavItems: NavLinkItem[] = [
-  { href: "/learn", label: "Learn Hub", icon: <GraduationCap size={18} /> },
-  { href: "/prices", label: "Price Comparison", icon: <Tag size={18} /> },
   { href: "/alternatives", label: "Generic Alternatives", icon: <RefreshCw size={18} /> },
+  { href: "/learn", label: "Learn Hub", icon: <GraduationCap size={18} /> },
   { href: "/adherence", label: "Adherence Tracker", icon: <Activity size={18} /> },
   { href: "/terms", label: "Terms & Conditions", icon: <FileText size={18} /> },
   { href: "/privacy", label: "Privacy Policy", icon: <ShieldCheck size={18} /> },

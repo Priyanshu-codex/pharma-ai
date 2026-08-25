@@ -3,6 +3,8 @@ import { generateAIContent, ChatHistoryMessage } from "@/lib/ai/gemini";
 import { mockChatResponse } from "@/lib/ai/mock-responses";
 import { ChatMessage } from "@/lib/types";
 
+import { findMedicineByNameOrIngredient } from "@/lib/data/medicines";
+
 export async function POST(req: Request) {
   try {
     const { message, history, role, userContext } = await req.json();
@@ -16,34 +18,48 @@ export async function POST(req: Request) {
     }
 
     const query = message.trim().toLowerCase();
+    const matchedMed = findMedicineByNameOrIngredient(query);
 
     // Intent detection to selectively enable web search grounding when real-time / current info is required
     const needsSearchGrounding =
       query.includes("latest") ||
       query.includes("current") ||
       query.includes("news") ||
-      query.includes("price") ||
       query.includes("today") ||
       query.includes("version") ||
       query.includes("who is the current") ||
       query.includes("prime minister") ||
       query.includes("president");
 
+    const datasetContext = matchedMed
+      ? `[PharmaAI Demo Database Record for "${matchedMed.name}"]:
+- Category: ${matchedMed.category}
+- Active Ingredient: ${matchedMed.activeIngredient}
+- Strength & Form: ${matchedMed.strength} (${matchedMed.dosageForm})
+- Brand / Manufacturer: ${matchedMed.brandName} (${matchedMed.manufacturer})
+- Primary Uses: ${matchedMed.uses.join("; ")}
+- Demo Price: ₹${matchedMed.price} (Original Brand: ₹${matchedMed.originalPrice}, Save ₹${matchedMed.savings} / ${matchedMed.savingsPercentage}%)
+- Availability: ${matchedMed.availability}
+- Common Side Effects: ${matchedMed.sideEffects.join("; ")}
+- Warnings / Precautions: ${matchedMed.warnings.join("; ")}
+- Storage: ${matchedMed.storage}
+- Generic Alternatives: ${matchedMed.alternatives.map((a) => `${a.name} by ${a.manufacturer} (₹${a.price})`).join(", ")}`
+      : "";
+
     const systemInstruction =
       role === "student"
         ? `You are PharmaAI, a clinical pharmacology tutor and versatile AI study assistant.
-You possess full general knowledge (coding, science, general facts, Hindi/Hinglish, technology) in addition to clinical pharmacology.
-When answering medicine/drug queries, identify the drug (handling misspellings e.g. "cetrizine" -> Cetirizine) and provide:
-1. Active ingredient and drug class
+${datasetContext ? `Matched Database Record:\n${datasetContext}\nProvide comprehensive clinical explanations referencing this record when relevant.` : "Answer clinical pharmacology queries clearly."}
+1. Active ingredient, drug class, and therapeutic category
 2. Mechanism of action & pharmacokinetics (ADME)
-3. Main therapeutic indications & side effects
-For general or coding questions, answer directly and accurately without forcing medicine topics.`
-        : `You are PharmaAI, an intelligent, empathetic AI assistant for patients and general users.
-You can answer ANY reasonable question (medicine, general knowledge, coding, current events, Hindi/Hinglish).
-When answering medicine queries, provide:
-1. What the medicine is and its primary uses
-2. Common side effects & precautions
-Never diagnose conditions or prescribe medications. Never return generic non-specific answers when a question is asked.
+3. Indications, side effects, and precautions`
+        : `You are PharmaAI, an intelligent, empathetic AI assistant for patients and health-conscious users.
+${datasetContext ? `Matched Database Record:\n${datasetContext}\nInclude relevant details from the database record above and note "[Source: PharmaAI Demo Database]".` : "Provide clear, educational medical information and note '[Source: General Medical Knowledge]'."}
+Safety Rules:
+1. Provide educational information clearly and helpfully.
+2. Do NOT act as a prescribing physician or diagnose conditions.
+3. Advise users to consult their healthcare professional for personalized medical decisions.
+4. If asked about generic alternatives or prices, mention that users can view full comparison details on the Generic Alternatives page.
 ${userContext ? `Patient Context: ${JSON.stringify(userContext)}` : ""}`;
 
     // Convert client chat history to Gemini history format (max last 10 messages)

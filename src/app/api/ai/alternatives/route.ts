@@ -18,9 +18,9 @@ export async function POST(req: Request) {
     if (genAI) {
       try {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const prompt = `You are a pharmaceutical database assistant for the Indian market.
+        const prompt = `You are a pharmaceutical pricing and generic alternative database assistant for the Indian market.
 
-Find generic alternatives for: "${ingredient}${strength ? ` ${strength}` : ""}"
+Find generic alternatives and price comparison data for: "${ingredient}${strength ? ` ${strength}` : ""}"
 
 Return ONLY a valid JSON array — no markdown, no explanation — in this exact format:
 [
@@ -31,15 +31,24 @@ Return ONLY a valid JSON array — no markdown, no explanation — in this exact
     "active_ingredient": "${ingredient}",
     "strength": "${strength || ""}",
     "dosage_form": "Tablet/Capsule/Syrup",
-    "price": 25,
+    "price": 18,
+    "original_price": 45,
+    "savings": 27,
+    "savings_percentage": 60,
     "currency": "INR",
     "pack_size": "10 tablets",
+    "availability": "Available",
     "data_source": "Indian Pharmacopoeia / CDSCO",
-    "last_updated": "${new Date().toISOString()}"
+    "last_updated": "${new Date().toISOString()}",
+    "retailers": [
+      { "name": "Apollo Pharmacy", "price": 18 },
+      { "name": "1mg", "price": 16 },
+      { "name": "PharmEasy", "price": 17 }
+    ]
   }
 ]
 
-List 3-5 real Indian-market generic alternatives. Use accurate manufacturer names. If the ingredient is unknown, return an empty array [].`;
+List 3-5 real Indian-market generic alternatives with realistic prices and estimated brand savings. Use accurate manufacturer names. If the ingredient is unknown, return an empty array [].`;
 
         const result = await model.generateContent(prompt);
         const text = result.response.text();

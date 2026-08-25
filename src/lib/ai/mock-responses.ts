@@ -18,6 +18,7 @@ import {
   PriceEntry,
 } from "@/lib/types";
 import { generateId, sleep } from "@/lib/utils";
+import { findMedicineByNameOrIngredient } from "@/lib/data/medicines";
 
 // ── Mock Medicine Scan Result ─────────────────────────────
 export async function mockScanMedicine(): Promise<ScanResult> {
@@ -104,6 +105,8 @@ export async function mockGetAlternatives(
 ): Promise<GenericAlternative[]> {
   await sleep(1000);
 
+  const brandPrice = 45; // Brand reference price (e.g. Crocin ₹45)
+
   return [
     {
       id: generateId(),
@@ -113,10 +116,19 @@ export async function mockGetAlternatives(
       strength: strength || "500mg",
       dosage_form: "Tablet",
       price: 18,
+      original_price: brandPrice,
+      savings: brandPrice - 18,
+      savings_percentage: Math.round(((brandPrice - 18) / brandPrice) * 100),
       currency: "INR",
       pack_size: "15 tablets",
+      availability: "Available",
       data_source: "Indian Pharmacopoeia",
       last_updated: new Date().toISOString(),
+      retailers: [
+        { name: "Apollo Pharmacy", price: 18 },
+        { name: "1mg", price: 16 },
+        { name: "PharmEasy", price: 17 },
+      ],
     },
     {
       id: generateId(),
@@ -126,10 +138,19 @@ export async function mockGetAlternatives(
       strength: strength || "500mg",
       dosage_form: "Tablet",
       price: 12,
+      original_price: brandPrice,
+      savings: brandPrice - 12,
+      savings_percentage: Math.round(((brandPrice - 12) / brandPrice) * 100),
       currency: "INR",
       pack_size: "10 tablets",
+      availability: "Available",
       data_source: "Indian Pharmacopoeia",
       last_updated: new Date().toISOString(),
+      retailers: [
+        { name: "Apollo Pharmacy", price: 13 },
+        { name: "1mg", price: 12 },
+        { name: "Netmeds", price: 14 },
+      ],
     },
     {
       id: generateId(),
@@ -139,10 +160,18 @@ export async function mockGetAlternatives(
       strength: strength || "500mg",
       dosage_form: "Tablet",
       price: 30,
+      original_price: brandPrice,
+      savings: brandPrice - 30,
+      savings_percentage: Math.round(((brandPrice - 30) / brandPrice) * 100),
       currency: "INR",
       pack_size: "15 tablets",
+      availability: "Available",
       data_source: "Indian Pharmacopoeia",
       last_updated: new Date().toISOString(),
+      retailers: [
+        { name: "1mg", price: 30 },
+        { name: "MedPlusMart", price: 29 },
+      ],
     },
   ];
 }
@@ -255,44 +284,65 @@ export async function mockChatResponse(
   // Extract previous context for multi-turn follow up queries
   const fullConversationText = messages.map((m) => m.content).join(" ").toLowerCase();
 
-  // ── Cetirizine / Cetrizine Recognition (Handles misspellings: cetrizine, cetirizine) ──
-  if (query.includes("cetirizine") || query.includes("cetrizine") || (query.includes("side effect") && fullConversationText.includes("cet")) || (query.includes("sleepy") && fullConversationText.includes("cet"))) {
-    if (query.includes("side effect") || query.includes("sleepy") || query.includes("drowsy")) {
-      return `### Cetirizine — Side Effects & Drowsiness Profile
+  // ── Centralized Dataset Match Engine ──────────────────────
+  const matchedMed = findMedicineByNameOrIngredient(query) || findMedicineByNameOrIngredient(fullConversationText);
+  if (matchedMed) {
+    if (query.includes("side effect") || query.includes("precaution") || query.includes("warning")) {
+      return `### ${matchedMed.name} — Side Effects & Safety
 
-**Primary Side Effects:**
-- **Drowsiness / Sedation:** Although cetirizine is classified as a second-generation (less-sedating) antihistamine, it can still cause mild to moderate drowsiness in 10–14% of individuals.
-- **Dry Mouth:** Mild anticholinergic action may cause dry mouth or throat.
-- **Fatigue & Headache:** Reported in some individuals during initial days.
+**Category:** ${matchedMed.category} · **Active Ingredient:** ${matchedMed.activeIngredient}
 
-**Safety Tip:** Avoid driving, operating machinery, or consuming alcohol until you know how cetirizine affects your alertness.`;
+#### ⚠️ Common Side Effects:
+${matchedMed.sideEffects.map((s) => `- ${s}`).join("\n")}
+
+#### 🛡️ Precautions & Warnings:
+${matchedMed.warnings.map((w) => `- ${w}`).join("\n")}
+- **Storage:** ${matchedMed.storage}
+
+*[Source: PharmaAI Demo Database]*
+
+> **Medical Disclaimer:** Educational information only. Always consult a healthcare professional for personalized medical advice.`;
     }
 
-    if (query.includes("use") || query.includes("what is") || query.includes("for")) {
-      return `### Cetirizine Overview & Indications
+    if (query.includes("alternative") || query.includes("generic") || query.includes("price") || query.includes("save")) {
+      return `### ${matchedMed.name} — Generic Alternatives & Pricing
 
-**Drug Class:** Second-Generation Antihistamine (H1 Receptor Antagonist)
+**Brand:** ${matchedMed.brandName} · **Manufacturer:** ${matchedMed.manufacturer}
+**Active Ingredient:** ${matchedMed.activeIngredient} (${matchedMed.strength})
 
-**Common Uses:**
-- **Allergic Rhinitis:** Relieves sneezing, runny nose, nasal congestion, itchy/watery eyes caused by hay fever or indoor allergies.
-- **Urticaria (Hives):** Reduces itching, redness, and skin wheals associated with chronic hives.
+#### 💰 Demo Pricing & Savings:
+- **Generic Price:** ₹${matchedMed.price} per pack
+- **Estimated Brand Price:** ₹${matchedMed.originalPrice}
+- **Potential Savings:** Save ₹${matchedMed.savings} (${matchedMed.savingsPercentage}% lower cost)
+- **Availability:** ${matchedMed.availability}
 
-**General Adult Dose:**
-- Typically 5mg to 10mg once daily.
+#### 💊 Available Generic Alternatives:
+${matchedMed.alternatives.map((a) => `- **${a.name}** by ${a.manufacturer} — ₹${a.price}`).join("\n")}
 
-*Consult your doctor or pharmacist for appropriate dosing based on renal function and age.*`;
+*Tip: You can compare full generic alternative details directly on the [Generic Alternatives](/alternatives) page.*
+
+*[Source: PharmaAI Demo Database]*`;
     }
 
-    return `### Cetirizine (also commonly spelled Cetrizine)
+    return `### ${matchedMed.name} (${matchedMed.brandName})
 
-Cetirizine is an effective second-generation antihistamine used to relieve allergy symptoms like sneezing, runny nose, itchy/watery eyes, and hives.
+**Category:** ${matchedMed.category}
+**Active Ingredient:** ${matchedMed.activeIngredient} · **Strength:** ${matchedMed.strength} (${matchedMed.dosageForm})
+**Manufacturer:** ${matchedMed.manufacturer}
 
-### Key Facts:
-- **How it Works:** Blocks histamine (H1) receptors to prevent allergic inflammation.
-- **Common Side Effects:** Drowsiness (in ~10% of users), dry mouth, tiredness.
-- **Dosing:** Usually taken once daily in the evening.
+#### 📋 Primary Uses:
+${matchedMed.uses.map((u) => `- ${u}`).join("\n")}
 
-*Would you like to know more about its side effects, uses, or interactions with other drugs?*`;
+#### ⚠️ Common Side Effects:
+${matchedMed.sideEffects.map((s) => `- ${s}`).join("\n")}
+
+#### 🛡️ Warnings & Storage:
+${matchedMed.warnings.map((w) => `- ${w}`).join("\n")}
+- **Storage:** ${matchedMed.storage}
+
+#### 💰 Demo Price & Generic Alternatives:
+- **Price:** ₹${matchedMed.price} *(Save up to ${matchedMed.savingsPercentage}% vs brand)*
+*[Source: PharmaAI Demo Database]*`;
   }
 
   // ── General Knowledge & Coding & Multilingual Fallback Handler ──
@@ -301,16 +351,7 @@ Cetirizine is an effective second-generation antihistamine used to relieve aller
   }
 
   if (query.includes("reverse a string") || query.includes("javascript")) {
-    return `### JavaScript Function to Reverse a String
-
-\`\`\`javascript
-function reverseString(str) {
-  return str.split('').reverse().join('');
-}
-
-// Example usage:
-console.log(reverseString("PharmaAI")); // Output: "IAPamrahP"
-\`\`\``;
+    return "### JavaScript Function to Reverse a String\n\n```javascript\nfunction reverseString(str) {\n  return str.split('').reverse().join('');\n}\n\n// Example usage:\nconsole.log(reverseString(\"PharmaAI\")); // Output: \"IAPamrahP\"\n```";
   }
 
   if (query.includes("photosynthesis")) {

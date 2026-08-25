@@ -112,6 +112,26 @@ export async function updateUserProfile(updates: Partial<DBProfile>): Promise<bo
 
 // ── Medicine Operations ───────────────────────────────────────
 
+import { CENTRAL_MEDICINES } from "@/lib/data/medicines";
+
+const DEFAULT_DEMO_DB_MEDICINES: DBMedicine[] = CENTRAL_MEDICINES.map((m, idx) => ({
+  id: m.id,
+  user_id: "demo_user",
+  name: m.name,
+  generic_name: m.genericName,
+  brand_name: m.brandName,
+  manufacturer: m.manufacturer,
+  active_ingredient: m.activeIngredient,
+  strength: m.strength,
+  dosage_form: m.dosageForm,
+  dosage_instructions: `Take 1 ${m.dosageForm.toLowerCase()} as advised. ${m.uses[0] || m.description}`,
+  frequency: idx % 2 === 0 ? "Twice daily" : "Once daily",
+  next_dose: idx % 2 === 0 ? "09:00 AM" : "08:00 PM",
+  reminder_enabled: true,
+  icon: "💊",
+  created_at: new Date(Date.now() - idx * 86400000).toISOString(),
+}));
+
 export async function fetchMedicineById(id: string): Promise<DBMedicine | null> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -143,6 +163,28 @@ export async function fetchMedicineById(id: string): Promise<DBMedicine | null> 
     }
   }
 
+  // Fallback: check central medicine dataset
+  const central = CENTRAL_MEDICINES.find((m) => m.id === id || m.name.toLowerCase() === id.toLowerCase());
+  if (central) {
+    return {
+      id: central.id,
+      user_id: "demo_user",
+      name: central.name,
+      generic_name: central.genericName,
+      brand_name: central.brandName,
+      manufacturer: central.manufacturer,
+      active_ingredient: central.activeIngredient,
+      strength: central.strength,
+      dosage_form: central.dosageForm,
+      dosage_instructions: `Primary use: ${central.uses[0] || central.description}`,
+      frequency: "Once daily",
+      next_dose: "09:00 AM",
+      reminder_enabled: true,
+      icon: "💊",
+      created_at: new Date().toISOString(),
+    };
+  }
+
   return null;
 }
 
@@ -158,7 +200,7 @@ export async function fetchUserMedicines(): Promise<DBMedicine[]> {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         return data as DBMedicine[];
       }
     } catch (err) {
@@ -170,11 +212,17 @@ export async function fetchUserMedicines(): Promise<DBMedicine[]> {
   if (typeof window !== "undefined") {
     const stored = localStorage.getItem("pharmaai_medicines");
     if (stored) {
-      try { return JSON.parse(stored); } catch {}
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch {}
     }
   }
 
-  return [];
+  // Default demo dataset fallback
+  return DEFAULT_DEMO_DB_MEDICINES;
 }
 
 export async function addMedicineToDB(medicine: Omit<DBMedicine, "id" | "user_id">): Promise<DBMedicine> {

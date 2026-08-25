@@ -621,17 +621,10 @@ export default function ScanPage() {
                 <div style={{ display: "flex", gap: 8 }}>
                   <Link
                     href={`/alternatives?drug=${encodeURIComponent(result?.medicine?.name || "")}`}
-                    className="btn-secondary"
+                    className="btn-primary"
                     style={{ flex: 1, justifyContent: "center" }}
                   >
-                    View Alternatives
-                  </Link>
-                  <Link
-                    href={`/prices?drug=${encodeURIComponent(result?.medicine?.name || "")}`}
-                    className="btn-secondary"
-                    style={{ flex: 1, justifyContent: "center" }}
-                  >
-                    Compare Prices
+                    Generic Alternatives & Prices
                   </Link>
                 </div>
 

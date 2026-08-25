@@ -51,6 +51,7 @@ export function CameraModal({ onCapture, onClose }: CameraModalProps) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     startCamera(facingMode);
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
