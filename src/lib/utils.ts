@@ -212,3 +212,56 @@ export function getLastNDays(n: number): string[] {
   }
   return days;
 }
+
+/**
+ * Safely resolves the public origin URL for OAuth redirects across local dev, mobile, and production deployments.
+ */
+export function getCanonicalOrigin(request?: Request): string {
+  // 1. Explicit site URL from environment
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL.trim();
+    if (!siteUrl.startsWith("http")) siteUrl = `https://${siteUrl}`;
+    return siteUrl.replace(/\/$/, "");
+  }
+
+  // 2. Vercel deployment URL
+  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+    let vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL.trim();
+    if (!vercelUrl.startsWith("http")) vercelUrl = `https://${vercelUrl}`;
+    return vercelUrl.replace(/\/$/, "");
+  }
+
+  // 3. Server-side request headers inspection (Proxy/Forwarded headers)
+  if (request) {
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+    const proto = request.headers.get("x-forwarded-proto") || "https";
+
+    if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
+      return `${proto}://${host}`.replace(/\/$/, "");
+    }
+
+    try {
+      const { origin } = new URL(request.url);
+      if (origin && !origin.includes("localhost") && !origin.includes("127.0.0.1")) {
+        return origin.replace(/\/$/, "");
+      }
+    } catch {}
+  }
+
+  // 4. Client-side window.location.origin
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, "");
+  }
+
+  // 5. Local default fallback
+  return "http://localhost:3000";
+}
+
+/**
+ * Get full OAuth redirect URL for callback route.
+ */
+export function getAuthRedirectUrl(path: string = "/auth/callback", request?: Request): string {
+  const origin = getCanonicalOrigin(request);
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${origin}${cleanPath}`;
+}

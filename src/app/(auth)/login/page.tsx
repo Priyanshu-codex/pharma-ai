@@ -430,10 +430,11 @@ export default function LoginPage() {
           onClick={async () => {
             try {
               const { createClient } = await import("@/lib/supabase/client");
+              const { getAuthRedirectUrl } = await import("@/lib/utils");
               const supabase = createClient();
               await supabase.auth.signInWithOAuth({
                 provider: "google",
-                options: { redirectTo: `${window.location.origin}/auth/callback` },
+                options: { redirectTo: getAuthRedirectUrl("/auth/callback") },
               });
             } catch (err) {
               console.error("Google Auth Error:", err);
