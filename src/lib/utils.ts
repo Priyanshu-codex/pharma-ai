@@ -215,23 +215,65 @@ export function getLastNDays(n: number): string[] {
 
 /**
  * Safely resolves the public origin URL for OAuth redirects across local dev, mobile, and production deployments.
+ *
+ * Priority:
+ *  1. Client-side localhost → keep as-is (localhost:3000 is registered in Supabase)
+ *  2. Client-side LAN IP (e.g. 192.168.x.x) → use NEXT_PUBLIC_SITE_URL so mobile OAuth
+ *     redirects to the registered production URL instead of an unreachable LAN address
+ *  3. NEXT_PUBLIC_SITE_URL → explicit canonical URL (production / Vercel)
+ *  4. NEXT_PUBLIC_VERCEL_URL → Vercel auto-detected deployment URL
+ *  5. Server-side request headers (x-forwarded-host)
+ *  6. window.location.origin (last client-side fallback)
+ *  7. http://localhost:3000 (hardcoded dev fallback)
  */
 export function getCanonicalOrigin(request?: Request): string {
-  // 1. Explicit site URL from environment
+  // ── Client-side ──────────────────────────────────────────────────────────
+  if (typeof window !== "undefined" && window.location?.origin) {
+    const hostname = window.location.hostname;
+
+    // 1. Localhost: always use as-is — it's registered in Supabase redirect URLs
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return window.location.origin.replace(/\/$/, "");
+    }
+
+    // 2. LAN / private-network IP (e.g. 192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    //    These are unreachable from Google's servers and not registered in Supabase.
+    //    Fall back to the configured production site URL so mobile OAuth works.
+    const isPrivateIp =
+      /^192\.168\./.test(hostname) ||
+      /^10\./.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+
+    if (isPrivateIp) {
+      if (process.env.NEXT_PUBLIC_SITE_URL) {
+        let siteUrl = process.env.NEXT_PUBLIC_SITE_URL.trim();
+        if (!siteUrl.startsWith("http")) siteUrl = `https://${siteUrl}`;
+        return siteUrl.replace(/\/$/, "");
+      }
+      if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+        let vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL.trim();
+        if (!vercelUrl.startsWith("http")) vercelUrl = `https://${vercelUrl}`;
+        return vercelUrl.replace(/\/$/, "");
+      }
+    }
+  }
+
+  // ── Server-side or production ──────────────────────────────────────────
+  // 3. Explicit site URL from environment (highest server-side priority)
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     let siteUrl = process.env.NEXT_PUBLIC_SITE_URL.trim();
     if (!siteUrl.startsWith("http")) siteUrl = `https://${siteUrl}`;
     return siteUrl.replace(/\/$/, "");
   }
 
-  // 2. Vercel deployment URL
+  // 4. Vercel deployment URL
   if (process.env.NEXT_PUBLIC_VERCEL_URL) {
     let vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL.trim();
     if (!vercelUrl.startsWith("http")) vercelUrl = `https://${vercelUrl}`;
     return vercelUrl.replace(/\/$/, "");
   }
 
-  // 3. Server-side request headers inspection (Proxy/Forwarded headers)
+  // 5. Server-side request headers inspection (Proxy/Forwarded headers)
   if (request) {
     const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
     const proto = request.headers.get("x-forwarded-proto") || "https";
@@ -248,12 +290,12 @@ export function getCanonicalOrigin(request?: Request): string {
     } catch {}
   }
 
-  // 4. Client-side window.location.origin
+  // 6. Client-side window.location.origin (non-LAN, non-localhost production fallback)
   if (typeof window !== "undefined" && window.location?.origin) {
     return window.location.origin.replace(/\/$/, "");
   }
 
-  // 5. Local default fallback
+  // 7. Local default fallback
   return "http://localhost:3000";
 }
 
@@ -265,3 +307,4 @@ export function getAuthRedirectUrl(path: string = "/auth/callback", request?: Re
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   return `${origin}${cleanPath}`;
 }
+
