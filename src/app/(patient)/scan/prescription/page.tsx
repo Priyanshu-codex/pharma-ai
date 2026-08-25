@@ -15,6 +15,7 @@ import {
 import { mockScanPrescription } from "@/lib/ai/mock-responses";
 import { ConfidenceBadge } from "@/components/shared/ConfidenceBadge";
 import { MedDisclaimer } from "@/components/shared/MedDisclaimer";
+import { CameraModal } from "@/components/shared/CameraModal";
 import type { PrescriptionMedicine } from "@/lib/types";
 
 type PageState = "upload" | "scanning" | "review" | "confirmed";
@@ -23,7 +24,8 @@ export default function PrescriptionPage() {
   const [state, setState] = useState<PageState>("upload");
   const [preview, setPreview] = useState<string | null>(null);
   const [medicines, setMedicines] = useState<PrescriptionMedicine[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileSelect(file: File) {
     const reader = new FileReader();
@@ -31,6 +33,15 @@ export default function PrescriptionPage() {
     reader.readAsDataURL(file);
     setState("scanning");
 
+    const extracted = await mockScanPrescription();
+    setMedicines(extracted);
+    setState("review");
+  }
+
+  async function handleCameraCapture(dataUrl: string) {
+    setShowCamera(false);
+    setPreview(dataUrl);
+    setState("scanning");
     const extracted = await mockScanPrescription();
     setMedicines(extracted);
     setState("review");
@@ -159,7 +170,7 @@ export default function PrescriptionPage() {
                   marginBottom: 16,
                   cursor: "pointer",
                 }}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => uploadInputRef.current?.click()}
               >
                 <div style={{ fontSize: 48, marginBottom: 14 }}>📋</div>
                 <h2
@@ -189,7 +200,7 @@ export default function PrescriptionPage() {
                     style={{ flex: 1, justifyContent: "center" }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      fileInputRef.current?.click();
+                      setShowCamera(true);
                     }}
                   >
                     <Camera size={18} />
@@ -200,7 +211,7 @@ export default function PrescriptionPage() {
                     style={{ flex: 1, justifyContent: "center" }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      fileInputRef.current?.click();
+                      uploadInputRef.current?.click();
                     }}
                   >
                     <Upload size={18} />
@@ -209,11 +220,11 @@ export default function PrescriptionPage() {
                 </div>
               </div>
 
+              {/* Gallery/upload input — opens file picker */}
               <input
-                ref={fileInputRef}
+                ref={uploadInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 style={{ display: "none" }}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -453,6 +464,14 @@ export default function PrescriptionPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Camera Modal */}
+      {showCamera && (
+        <CameraModal
+          onCapture={handleCameraCapture}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   );
 }
