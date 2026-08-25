@@ -53,6 +53,8 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+import { PWAInstallBanner } from "@/components/shared/PWAInstallBanner";
+
 export default function RootLayout({
   children,
 }: {
@@ -77,6 +79,7 @@ export default function RootLayout({
         <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
       </head>
       <body>
+        <PWAInstallBanner />
         {children}
         {/* Service Worker Registration via Next.js Script */}
         <Script
