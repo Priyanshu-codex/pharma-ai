@@ -60,7 +60,7 @@ export default function CasesPage() {
   if (!currentCase) return null;
 
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto" }}>
+    <div className="w-full max-w-[430px] md:max-w-2xl mx-auto pb-6">
       {/* Header */}
       <div
         style={{

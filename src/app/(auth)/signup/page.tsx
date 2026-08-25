@@ -462,6 +462,64 @@ export default function SignupPage() {
           </button>
         </motion.form>
 
+        {/* Divider */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            margin: "20px 0",
+          }}
+        >
+          <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 500 }}>
+            or
+          </span>
+          <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
+        </div>
+
+        {/* Google Sign-Up Button */}
+        <button
+          type="button"
+          className="btn-ghost"
+          style={{
+            width: "100%",
+            justifyContent: "center",
+            gap: 10,
+            border: "1px solid var(--color-border)",
+            padding: "10px 16px",
+            borderRadius: "var(--radius-md)",
+            fontWeight: 600,
+            fontSize: 14,
+          }}
+          onClick={async () => {
+            try {
+              const { createClient } = await import("@/lib/supabase/client");
+              const { getAuthRedirectUrl } = await import("@/lib/utils");
+              const supabase = createClient();
+              await supabase.auth.signInWithOAuth({
+                provider: "google",
+                options: { redirectTo: getAuthRedirectUrl("/auth/callback") },
+              });
+            } catch (err) {
+              console.error("Google Auth Error:", err);
+              setServerError("Failed to initialize Google sign-in. Please try again.");
+            }
+          }}
+        >
+          <span
+            style={{
+              fontWeight: 800,
+              fontSize: 16,
+              fontFamily: "sans-serif",
+              color: "#4285F4",
+            }}
+          >
+            G
+          </span>
+          Continue with Google
+        </button>
+
         {/* Login Link */}
         <p
           style={{
