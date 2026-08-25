@@ -163,7 +163,7 @@ export function AIAssistant({ mode }: AIAssistantProps) {
   const showSuggestions = messages.length === 1;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-var(--bottom-nav-height)-var(--safe-bottom))] md:h-[calc(100vh-var(--top-nav-height))] bg-[var(--color-surface)] max-w-4xl mx-auto md:my-4 md:rounded-2xl md:border md:border-[var(--color-border)] md:shadow-lg overflow-hidden">
+    <div className="flex flex-col flex-1 h-full min-h-0 w-full max-w-4xl mx-auto md:my-4 md:h-[calc(100vh-var(--top-nav-height)-2rem)] md:rounded-2xl md:border md:border-[var(--color-border)] md:shadow-lg bg-[var(--color-surface)] overflow-hidden pb-[calc(var(--bottom-nav-height)+var(--safe-bottom))] md:pb-0">
       {/* Header */}
       <div
         style={{
@@ -219,6 +219,7 @@ export function AIAssistant({ mode }: AIAssistantProps) {
       <div
         style={{
           flex: 1,
+          minHeight: 0,
           overflowY: "auto",
           padding: "16px",
           display: "flex",
@@ -336,7 +337,8 @@ export function AIAssistant({ mode }: AIAssistantProps) {
           borderTop: "1px solid var(--color-border-light)",
           padding: "12px 16px",
           flexShrink: 0,
-          paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
+          position: "relative",
+          zIndex: 10,
         }}
       >
         <div

@@ -68,27 +68,27 @@ export default function TermsPage() {
           <AlertTriangle className="text-amber-500" size={20} />
           3. Medical Disclaimer
         </h2>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-amber-900 text-sm leading-relaxed">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 sm:p-4 mb-4 text-amber-900 text-xs sm:text-sm leading-relaxed min-w-0 break-words [overflow-wrap:anywhere]">
           <p className="font-bold mb-1">IMPORTANT NOTICE:</p>
           PharmaAI is NOT a licensed medical doctor, hospital, pharmacy, or emergency healthcare provider. The content, outputs, reminders, and AI responses provided by PharmaAI are for informational and educational purposes only and MUST NOT be construed as professional medical advice, diagnosis, treatment, or formal prescription.
         </div>
         <p className="mb-3">
           Always seek the direct advice of your physician, licensed pharmacist, or other qualified healthcare provider regarding any medical condition, dosage, side effect, or treatment plan. Never disregard professional medical advice or delay seeking it because of information accessed on PharmaAI.
         </p>
-        <p className="font-semibold text-red-600 text-sm">
+        <p className="font-semibold text-red-600 text-xs sm:text-sm break-words">
           🚨 IF YOU ARE EXPERIENCING A MEDICAL EMERGENCY, IMMEDIATELY CALL YOUR LOCAL EMERGENCY SERVICES (E.G., 911 OR 112) OR PROCEED TO THE NEAREST EMERGENCY ROOM.
         </p>
       </section>
 
       {/* 4. User Accounts */}
       <section id="user-accounts" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           4. User Accounts
         </h2>
         <p className="mb-3">
           To access personalized medication management and student study features, you must create a user account. You agree to:
         </p>
-        <ul className="list-disc pl-6 space-y-1.5 text-sm">
+        <ul className="list-disc pl-5 sm:pl-6 space-y-1.5 text-xs sm:text-sm min-w-0 break-words [overflow-wrap:anywhere]">
           <li>Provide accurate, current, and complete registration information.</li>
           <li>Maintain the security of your password and credentials.</li>
           <li>Promptly update your profile information if changes occur.</li>
@@ -98,11 +98,11 @@ export default function TermsPage() {
 
       {/* 5. Acceptable Use */}
       <section id="acceptable-use" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           5. Acceptable Use
         </h2>
         <p className="mb-3">When using PharmaAI, you agree NOT to:</p>
-        <ul className="list-disc pl-6 space-y-1.5 text-sm">
+        <ul className="list-disc pl-5 sm:pl-6 space-y-1.5 text-xs sm:text-sm min-w-0 break-words [overflow-wrap:anywhere]">
           <li>Misuse or attempt to gain unauthorized access to any part of the system or database.</li>
           <li>Interfere with, disrupt, or place an unreasonable load on the servers, networks, or APIs.</li>
           <li>Upload malicious code, viruses, or harmful files.</li>
@@ -114,7 +114,7 @@ export default function TermsPage() {
 
       {/* 6. Medication Information */}
       <section id="medication-info" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           6. Medication Information
         </h2>
         <p>
@@ -124,13 +124,13 @@ export default function TermsPage() {
 
       {/* 7. AI Assistant Guidance */}
       <section id="ai-assistant" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           7. AI Assistant Guidance
         </h2>
         <p className="mb-3">
           PharmaAI incorporates automated generative Artificial Intelligence (powered by Google Gemini APIs) to assist patients with drug explanations and support pharmacy students with pharmacology concepts.
         </p>
-        <ul className="list-disc pl-6 space-y-1.5 text-sm">
+        <ul className="list-disc pl-5 sm:pl-6 space-y-1.5 text-xs sm:text-sm min-w-0 break-words [overflow-wrap:anywhere]">
           <li>AI responses are generated dynamically and may contain errors, omissions, or inaccuracies.</li>
           <li>The AI Assistant cannot perform physical examinations, diagnose illnesses, or issue prescriptions.</li>
           <li>You must independently evaluate and verify any information generated by the AI Assistant before taking medical action.</li>
@@ -139,7 +139,7 @@ export default function TermsPage() {
 
       {/* 8. OCR / Image Scanning */}
       <section id="ocr-scanning" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           8. OCR / Image Scanning Technology
         </h2>
         <p>
@@ -149,7 +149,7 @@ export default function TermsPage() {
 
       {/* 9. Notifications & Reminders */}
       <section id="notifications" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           9. Notifications & Reminders
         </h2>
         <p>
@@ -159,7 +159,7 @@ export default function TermsPage() {
 
       {/* 10. Intellectual Property */}
       <section id="intellectual-property" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           10. Intellectual Property
         </h2>
         <p>
@@ -169,11 +169,11 @@ export default function TermsPage() {
 
       {/* 11. Third-Party Services */}
       <section id="third-party" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           11. Third-Party Integration Services
         </h2>
         <p className="mb-3">PharmaAI relies on trusted third-party infrastructure providers to supply core platform functionality:</p>
-        <ul className="list-disc pl-6 space-y-1.5 text-sm">
+        <ul className="list-disc pl-5 sm:pl-6 space-y-1.5 text-xs sm:text-sm min-w-0 break-words [overflow-wrap:anywhere]">
           <li><strong>Supabase Auth & Database:</strong> User authentication, secure database storage, and Row Level Security.</li>
           <li><strong>Google OAuth:</strong> Social sign-in authentication.</li>
           <li><strong>Google Gemini API:</strong> Generative AI assistance, drug mechanism synthesis, and vision analysis.</li>
@@ -184,7 +184,7 @@ export default function TermsPage() {
 
       {/* 12. Service Availability */}
       <section id="availability" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           12. Service Availability
         </h2>
         <p>
@@ -194,7 +194,7 @@ export default function TermsPage() {
 
       {/* 13. Account Termination */}
       <section id="termination" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           13. Account Termination & Deletion
         </h2>
         <p>
@@ -204,7 +204,7 @@ export default function TermsPage() {
 
       {/* 14. Limitation of Liability */}
       <section id="liability" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           14. Limitation of Liability
         </h2>
         <p>
@@ -214,7 +214,7 @@ export default function TermsPage() {
 
       {/* 15. Changes to Terms */}
       <section id="changes" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           15. Changes to Terms
         </h2>
         <p>
@@ -224,15 +224,15 @@ export default function TermsPage() {
 
       {/* 16. Contact Information */}
       <section id="contact" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
           16. Contact Information
         </h2>
         <p className="mb-2">
           If you have any questions or feedback regarding these Terms & Conditions, please contact us:
         </p>
-        <div className="bg-[var(--color-surface-alt)] p-4 rounded-xl text-sm font-medium">
-          <p>📧 Email: <a href="mailto:support@pharmaai.app" className="text-[var(--color-primary)] font-semibold">support@pharmaai.app</a></p>
-          <p className="mt-1">🌐 Website: <a href="https://pharmaai.app" className="text-[var(--color-primary)] font-semibold">https://pharmaai.app</a></p>
+        <div className="bg-[var(--color-surface-alt)] p-3.5 sm:p-4 rounded-xl text-xs sm:text-sm font-medium min-w-0 break-words [overflow-wrap:anywhere]">
+          <p>📧 Email: <a href="mailto:support@pharmaai.app" className="text-[var(--color-primary)] font-semibold break-all">support@pharmaai.app</a></p>
+          <p className="mt-1">🌐 Website: <a href="https://pharmaai.app" className="text-[var(--color-primary)] font-semibold break-all">https://pharmaai.app</a></p>
         </div>
       </section>
     </LegalPageLayout>
